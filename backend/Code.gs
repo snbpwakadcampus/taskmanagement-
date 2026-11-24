@@ -569,7 +569,7 @@ function apiSaveSettings(p, me) {
   Object.keys(DEFAULT_SETTINGS).forEach(function (k) { if (s[k] !== undefined) setSetting(k, clip(s[k], 200)); });
   const pr = PropertiesService.getScriptProperties();
   ['waInstance', 'waToken', 'waGroupId', 'waApiUrl'].forEach(function (k) { if (s[k] !== undefined && String(s[k]).indexOf('••') < 0) pr.setProperty(k, clip(s[k], 200).trim()); });
-  addLog(me.name, 'settings', JSON.stringify(s).slice(0, 200));
+  addLog(me.name, 'settings', Object.keys(s).filter(function (k) { return k !== 'waToken'; }).join(', ') + (s.waToken ? ' (+ API token updated)' : ''));
   return { ok: true, settings: publicSettings(getSettings()) };
 }
 function apiSendReminders(p, me) {
@@ -685,23 +685,54 @@ function buildDailyUpdate() {
   rows('Users').forEach(function (u) { names[u.id] = shortName(u.name); });
   const tasks = rows('Tasks');
   const who = function (t) { return t.assignees.split(',').filter(Boolean).map(function (i) { return names[i] || '?'; }).join('/'); };
-  const line = function (t) { return '• ' + (t.code ? t.code + ' ' : '') + clip(t.title, 55) + (t.title.length > 55 ? '…' : '') + ' – ' + who(t); };
-  const list = function (arr, max) { return arr.slice(0, max).map(line).join('\n') + (arr.length > max ? '\n  +' + (arr.length - max) + ' more' : ''); };
-  const doneY = tasks.filter(function (t) { return t.status === 'Completed' && t.closedDate === yd; });
-  const pendY = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate === yd; });
+  const title = function (t) { return (t.code ? t.code + ' ' : '') + clip(t.title, 50) + (t.title.length > 50 ? '…' : ''); };
+  const done = tasks.filter(function (t) { return t.status === 'Completed'; });
+  const prog = tasks.filter(function (t) { return t.status === 'In Progress'; });
+  const doneY = done.filter(function (t) { return t.closedDate === yd; });
   const today = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate === td; });
-  const over = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate && t.targetDate < yd; });
-  const done = tasks.filter(function (t) { return t.status === 'Completed'; }).length;
-  const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+  const over = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate && t.targetDate < td; })
+    .sort(function (a, b) { return a.targetDate < b.targetDate ? -1 : 1; });
+  const pct = tasks.length ? Math.round(done.length / tasks.length * 100) : 0;
+  const bar = '▓'.repeat(Math.round(pct / 10)) + '░'.repeat(10 - Math.round(pct / 10));
+  const starts = tasks.map(function (t) { return t.startDate || t.targetDate; }).filter(String).sort();
+  const ends = tasks.map(function (t) { return t.targetDate; }).filter(String).sort();
   const d = new Date(td + 'T12:00:00');
-  let m = '🌅 *Good morning, Team SNBP Wakad!*\n_' + Utilities.formatDate(d, CONFIG.TZ, 'EEEE, d MMM') + '_\n\n';
-  m += '✅ *Done yesterday (' + doneY.length + ')*\n' + (doneY.length ? list(doneY, 5) : '• —') + '\n\n';
-  if (pendY.length) m += '⏳ *Missed yesterday (' + pendY.length + ')*\n' + list(pendY, 5) + '\n\n';
-  m += '📌 *Today’s focus (' + today.length + ')*\n' + (today.length ? list(today, 6) : '• Nothing due today – push ahead on upcoming tasks') + '\n\n';
-  if (over.length) m += '⚠️ *Still overdue:* ' + over.length + ' task' + (over.length > 1 ? 's' : '') + '\n\n';
-  m += '📊 Overall: *' + done + '/' + tasks.length + ' done (' + pct + '%)*\n';
-  m += '🔗 ' + CONFIG.DASHBOARD_URL + '\n\nHave a productive day! 💪';
+  let m = '🌅 *Good morning, Team SNBP Wakad!*\n📅 ' + Utilities.formatDate(d, CONFIG.TZ, 'EEE, d MMM yyyy');
+  if (starts.length) {
+    const span = Math.round((new Date(ends[ends.length - 1]) - new Date(starts[0])) / 864e5) + 1;
+    const day = Math.round((new Date(td) - new Date(starts[0])) / 864e5) + 1;
+    if (day >= 1 && day <= span) m += ' · Day ' + day + ' of ' + span;
+  }
+  m += '\n\n📊 *Progress*  ' + bar + '  *' + pct + '%*\n✅ ' + done.length + ' done · 🔄 ' + prog.length + ' in progress · ⚠️ ' + over.length + ' overdue\n';
+  m += '\n🏆 *Done yesterday (' + doneY.length + ')*\n' + (doneY.length ? doneY.slice(0, 5).map(function (t) { return '• ' + title(t) + ' — ' + who(t); }).join('\n') + (doneY.length > 5 ? '\n  +' + (doneY.length - 5) + ' more' : '') : '• No closures logged yesterday') + '\n';
+  m += '\n📌 *Today’s focus (' + today.length + ')*\n';
+  if (today.length) {
+    const by = {};
+    today.forEach(function (t) { t.assignees.split(',').filter(Boolean).forEach(function (i) { (by[i] = by[i] || []).push(t); }); });
+    Object.keys(by).forEach(function (i) { m += '👤 *' + (names[i] || '?') + '*\n' + by[i].slice(0, 4).map(function (t) { return '   • ' + title(t); }).join('\n') + (by[i].length > 4 ? '\n   +' + (by[i].length - 4) + ' more' : '') + '\n'; });
+  } else m += '• Nothing due today — push ahead on upcoming tasks\n';
+  if (over.length) {
+    m += '\n⚠️ *Overdue (' + over.length + ')*\n' + over.slice(0, 5).map(function (t) {
+      const late = Math.round((new Date(td) - new Date(t.targetDate)) / 864e5);
+      return '• ' + title(t) + ' — ' + who(t) + ' _(' + late + 'd)_';
+    }).join('\n') + (over.length > 5 ? '\n  +' + (over.length - 5) + ' more' : '') + '\n';
+  }
+  const b = rows('Budget');
+  if (b.length) {
+    let base = 0, paid = 0;
+    b.forEach(function (x) { base += num(x.approved) || num(x.planned); paid += num(x.paid); });
+    m += '\n💰 Budget: ₹' + paid.toLocaleString('en-IN') + ' paid of ₹' + base.toLocaleString('en-IN') + '\n';
+  }
+  m += '\n🔗 Update your tasks: ' + CONFIG.DASHBOARD_URL + '\n_Let’s make today count!_ 💪';
   return m;
+}
+/** One-time clean-up: removes API tokens that older versions wrote into the Log sheet. */
+function redactLogTokens() {
+  const sh = sheet('Log');
+  const v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][3]).indexOf('waToken') >= 0) sh.getRange(i + 1, 4).setValue('WhatsApp settings saved (token hidden)');
+  }
 }
 function waConfig() {
   const pr = PropertiesService.getScriptProperties();
