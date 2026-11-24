@@ -288,6 +288,11 @@ td.num,th.num{text-align:right;white-space:nowrap}
 .sn{font-size:13px;font-weight:700;line-height:1.25}
 .stream em{font-style:normal;font-size:11.5px;color:var(--late);font-weight:700}.stream small{font-size:11.5px;color:var(--mut)}
 @media(max-width:820px){.duo{grid-template-columns:1fr}}
+.next{border:0;background:var(--plum);color:#fff;border-radius:99px;padding:8px 14px;font-weight:600;font-size:13.5px;margin-bottom:12px;cursor:pointer}
+.next b{color:#FFD0C4}
+.bg-big{font-size:26px;font-weight:800;line-height:1.1}.bg-big small{font-size:13px;color:var(--mut);font-weight:600}
+.box .lead div{background:none;border-top:1px solid var(--line);border-radius:0;padding:9px 2px}
+.box .feed{max-height:300px}
 footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-size:13px}
 .hide{display:none!important}
 .spin{display:inline-block;width:16px;height:16px;border:2.5px solid #fff6;border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
@@ -831,6 +836,16 @@ function streamsHTML() {
   const g = {}; S.tasks.forEach(t => { const k = t.activity || 'General'; (g[k] = g[k] || []).push(t); });
   return `<div class="streams">${Object.entries(g).map(([k, l], i) => { const s = stats(l); const c = COLORS[i % COLORS.length]; return `<button class="stream" data-act="${esc(k)}" style="--sc:${c}"><span class="sr" style="--p:${s.pct}"><b>${s.done}/${s.total}</b></span><span class="sn">${esc(k)}</span>${s.late ? `<em>${s.late} late</em>` : s.prog ? `<small>${s.prog} moving</small>` : ''}</button>`; }).join('')}</div>`;
 }
+function budgetGlance() {
+  if (!S.budget.length) return '<p class="calm">No budget lines yet.</p>';
+  const b = bstats(S.budget), heads = {};
+  S.budget.forEach(x => { const k = x.head || 'General'; (heads[k] = heads[k] || []).push(x); });
+  const top = Object.entries(heads).map(([k, l]) => [k, bstats(l)]).sort((a, c) => c[1].base - a[1].base).slice(0, 4);
+  return `<div class="bg-big">${inr(b.paid)}<small> paid of ${inr(b.base)}</small></div>
+   <div class="track" style="height:14px;margin:8px 0 14px"><i style="width:${b.pct}%;background:var(--done)"></i></div>
+   <div class="bars">${top.map(([k, q]) => `<div class="bar"><label><span>${esc(k)}</span><span>${inr(q.balance)} due</span></label><div class="track"><i style="width:${q.base ? q.paid / q.base * 100 : 0}%;background:var(--done)"></i></div></div>`).join('')}</div>
+   <button class="more" data-go="budget">Open budget register →</button>`;
+}
 function rDash() {
   const s = stats(S.tasks), b = bstats(S.budget), p = planPace(), td = today();
   const attn = S.tasks.filter(t => t.state !== 'done' && t.dueIn !== null && t.dueIn <= 0).sort((x, y) => x.targetDate < y.targetDate ? -1 : 1);
@@ -853,6 +868,7 @@ function rDash() {
    </div>
    <div class="pace-r">
     ${donutSVG(s)}
+    ${(() => { const n = S.tasks.filter(t => t.state !== 'done' && t.dueIn !== null && t.dueIn >= 0).sort((a, c) => a.targetDate < c.targetDate ? -1 : 1)[0]; return n ? `<button class="next" data-task="${esc(n.id)}">⏱ Next deadline · <b>${esc(n.code || '')}</b> ${n.dueIn === 0 ? 'today' : n.dueIn === 1 ? 'tomorrow' : 'in ' + n.dueIn + ' days'}</button>` : ''; })()}
     <div class="pills"><span><b>${s.prog}</b> in progress</span><span class="${s.late ? 'red' : ''}"><b>${s.late}</b> overdue</span>${S.budget.length ? `<span><b>${inr(b.paid)}</b> of ${inr(b.base)} paid</span>` : ''}</div>
    </div>
   </section>
@@ -868,6 +884,12 @@ function rDash() {
    <div class="box ${attn.length ? 'alert' : ''}"><h3>Needs attention <span>${attn.length}</span></h3>${attn.length ? attn.slice(0, 5).map(t => miniRow(t, t.dueIn === 0 ? 'Today' : -t.dueIn + 'd late')).join('') + (attn.length > 5 ? `<button class="more" data-go="tasks:late">+${attn.length - 5} more</button>` : '') : '<p class="calm">Nothing overdue or due today.</p>'}</div>
    <div class="box"><h3>Coming up <span>${next.length}</span></h3>${next.length ? next.slice(0, 5).map(t => miniRow(t, t.dueIn === 1 ? 'Tomorrow' : fmtD(t.targetDate))).join('') + (next.length > 5 ? `<button class="more" data-go="tasks:open">+${next.length - 5} more</button>` : '') : '<p class="calm">Nothing due in the next 3 days.</p>'}</div>
    <div class="box"><h3>Recent wins <span>${s.done}</span></h3>${wins.length ? wins.map(t => miniRow(t, fmtD(t.closedDate))).join('') : '<p class="calm">The first win is on its way.</p>'}</div>
+  </section>
+
+  <section class="three">
+   <div class="box"><h3>On-time champions</h3>${leaderboard()}</div>
+   <div class="box"><h3>Budget at a glance</h3>${budgetGlance()}</div>
+   <div class="box"><h3>Live updates</h3>${feedHTML()}</div>
   </section>
 
   <section class="crew"><h3>Team</h3><div class="crew-row">${ps.map(({ u, s: q }) => `<button class="mate" data-person="${esc(u.id)}">${ring(q.pct, q.late ? 'var(--late)' : 'var(--done)')}<span><b>${esc(u.name.replace(/^(Dr|Mr|Mrs|Ms|Prof)\.?\s+/i, ''))}</b><small>${q.done}/${q.total} done${q.late ? ` · <em>${q.late} late</em>` : ''}</small></span></button>`).join('')}</div></section>
