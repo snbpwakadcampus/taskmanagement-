@@ -594,7 +594,7 @@ function dailyReminder(force) {
     const over = mine.filter(function (t) { return t.targetDate < td; });
     const due = mine.filter(function (t) { return t.targetDate >= td && t.targetDate <= soon; });
     const pay = budget.filter(function (b) { return b.responsible === u.id; });
-    if (!over.length && !due.length && !pay.length) return;
+    if (!u.email || (!over.length && !due.length && !pay.length)) return;
     let body = '<p>Good morning ' + esc(u.name) + ', here is your task status for <b>' + td + '</b>.</p>';
     if (over.length) body += '<h3 style="color:#C92A2A;margin:18px 0 6px">⚠ Overdue (' + over.length + ')</h3>' + taskTable(over, td);
     if (due.length) body += '<h3 style="color:#E8590C;margin:18px 0 6px">Due soon (' + due.length + ')</h3>' + taskTable(due, td);
@@ -622,6 +622,7 @@ function dailyReminder(force) {
 
 /* ------------------------------------------------------------------ email */
 function sendMail(to, subject, html) {
+  if (!to) return;
   try {
     MailApp.sendEmail({ to: to, subject: '[SNBP Wakad] ' + subject, htmlBody: html, name: 'SNBP Wakad Command Centre', replyTo: CONFIG.ADMIN_EMAIL });
   } catch (e) { addLog('system', 'mail-error', to + ' ' + e); }
@@ -668,7 +669,7 @@ function notifyAssigned(ids, tasks, me) {
   const users = rows('Users');
   ids.forEach(function (id) {
     const u = users.filter(function (x) { return x.id === id && x.active === 'yes'; })[0];
-    if (!u) return;
+    if (!u || !u.email) return;
     const td = todayStr();
     sendMail(u.email, tasks.length === 1 ? 'New task: ' + tasks[0].title : tasks.length + ' new tasks assigned to you',
       mailWrap('New task' + (tasks.length > 1 ? 's' : '') + ' for you', '<p>' + esc(me.name) + ' assigned you the following:</p>' + taskTable(tasks, td)));
@@ -753,4 +754,42 @@ function apiWaGroups(p, me) {
     const list = waPost('getContacts') || [];
     return { ok: true, groups: list.filter(function (c) { return String(c.id || '').indexOf('@g.us') > 0; }).map(function (c) { return { id: c.id, name: c.name || c.contactName || c.id }; }) };
   } catch (e) { return { ok: false, error: String(e.message) }; }
+}
+
+/* One-time import of the 22–30 Nov 2026 Action Plan Tracker (safe to re-run: skips if tasks exist). */
+function importActionPlan() {
+  const PLAN = [["1.1", "Programme Flyer – School of Management", "Design professional flyer covering all School of Management programmes (BBA, BCA, MBA, MCA)", ["Mahesh", "Atul"], "2026-11-24", 0, "Soft copy for digital use and print"], ["1.2", "Programme Flyer – School of Management", "Verify website address, official contact number and email ID; generate QR code", ["Mahesh", "Atul"], "2026-11-24", 0, "Cross-check every detail before release"], ["1.3", "Programme Flyer – School of Management", "Final approval and release of print-ready and social-media versions", ["Vishal"], "2026-11-25", 0, ""], ["2.1", "Digital Marketing & Promotion", "Organic circulation on Facebook, Instagram, LinkedIn and other relevant platforms", ["Atul"], "2026-11-25", 0, "Continue daily till 30 Nov"], ["2.2", "Digital Marketing & Promotion", "Paid promotion – Class XII students and 17–25 age group, 25 km radius around Wakad Campus", ["Atul"], "2026-11-26", 5000, "Total digital budget ₹5,000 up to 30 Nov (incl. Google Ads)"], ["2.3", "Digital Marketing & Promotion", "Explore and run Google Ads within the available budget", ["Atul"], "2026-11-27", 0, "Within ₹5,000 above"], ["2.4", "Digital Marketing & Promotion", "Track reach, clicks and enquiries from each platform", ["Atul"], "2026-11-30", 0, "Share summary report"], ["3.1", "School / Junior College / Coaching Centre Outreach", "Prepare ~15-slide presentation on career options after Class XII + 3 slides on SNBP University, Wakad Campus", ["Mahesh"], "2026-11-25", 0, ""], ["3.2", "School / Junior College / Coaching Centre Outreach", "Prepare 4-minute promotional video on Wakad Campus and its programmes", ["Mahesh"], "2026-11-27", 0, ""], ["3.3", "School / Junior College / Coaching Centre Outreach", "Identify 3–4 schools / junior colleges / coaching centres and obtain permission for a 30-minute session", ["Mahesh"], "2026-11-26", 0, "Record institution, contact person, visit date"], ["3.4", "School / Junior College / Coaching Centre Outreach", "Purchase 100 promotional articles with SBM – SNBP University, Wakad Campus branding (₹150–₹200 each)", ["Mahesh"], "2026-11-27", 20000, "Maximum budget ₹20,000"], ["3.5", "School / Junior College / Coaching Centre Outreach", "Prepare attractive A3 flyer/poster for institutions' notice boards", ["Mahesh"], "2026-11-25", 0, ""], ["3.6", "School / Junior College / Coaching Centre Outreach", "Conduct visits and presentations; distribute articles; request poster display", ["Mahesh"], "2026-11-30", 0, "Minimum 3–4 institutions"], ["4.1", "Corporate & HR Outreach", "Contact at least 3 companies / HR representatives; introduce SNBP brand and MBA programme", ["Mahesh"], "2026-11-27", 0, ""], ["4.2", "Corporate & HR Outreach", "Arrange a visit to at least one organisation to promote the MBA programme", ["Mahesh"], "2026-11-30", 0, ""], ["5.1", "Newspaper Pamphlet Distribution", "Prepare one-page promotional flyer for newspaper insertion", ["Mahesh"], "2026-11-25", 0, ""], ["5.2", "Newspaper Pamphlet Distribution", "Print at least 5,000 pamphlets", ["Mahesh"], "2026-11-27", 0, "Budget as per actual expenses"], ["5.3", "Newspaper Pamphlet Distribution", "Arrange distribution through newspapers", ["Mahesh"], "2026-11-29", 0, "Record areas covered"], ["6.1", "Strategic Planning & Budget Finalisation", "Meeting of Dr. Atul Katole and Mr. Mahesh with Dr. Ketan Desale", ["Atul"], "2026-11-26", 0, ""], ["6.2", "Strategic Planning & Budget Finalisation", "Comprehensive strategic plan with time-wise execution calendar and detailed budget", ["Atul"], "2026-12-01", 0, "Deadline 1 Dec 2026"], ["7.1", "Hoarding & Outdoor Branding", "Identify prominent hoarding locations in Wakad – highways and major roads", ["Avinash"], "2026-11-27", 0, "Primary approval by Dr. Avinash Thakur"], ["7.2", "Hoarding & Outdoor Branding", "Discuss options, obtain quotations and evaluate monthly expenditure", ["Avinash"], "2026-11-30", 0, "Primary approval by Dr. Avinash Thakur; budget after quotations"], ["8.1", "Finalisation of Promotional Agencies", "Finalise engagement with College Wollage – Mr. Nadeem Patel", ["Wadhwa", "Avinash"], "2026-11-30", 60000, "Proposed ₹50,000–₹60,000 for both agencies"], ["8.2", "Finalisation of Promotional Agencies", "Finalise engagement with Digital News – Mr. Vikas Kadam", ["Wadhwa", "Avinash"], "2026-11-30", 0, "Included in 8.1 budget"], ["9.1", "Student Lead Generation", "Identify and collect at least 300 valid prospective student leads", ["Mahesh"], "2026-11-30", 0, "Target: 300 leads"], ["9.2", "Student Lead Generation", "Start calling and follow-up of collected leads", ["Mahesh"], "2026-12-07", 0, "Begins after first week of December"], ["10.1", "CRM Implementation", "Ensure proper implementation of the University's CRM system for Wakad Campus", ["Mahesh"], "2026-11-30", 0, ""], ["11.1", "Office Readiness – Wakad Campus", "Make office area fully ready in all respects; complete essential arrangements", ["Avinash"], "2026-11-30", 0, "Follow-up by Dr. Avinash Thakur; operational before 1 Dec 2026"], ["12.1", "Mobile Purchase", "Mobile Purchase", ["Atul"], "2026-11-30", 0, ""]];
+  if (rows('Tasks').length) { Logger.log('Tasks already exist – import skipped.'); return; }
+  const people = {
+    Atul: { name: CONFIG.ADMIN_NAME },
+    Mahesh: { name: 'Mr. Mahesh Karad', designation: 'Admissions Manager', access: 'member' },
+    Avinash: { name: 'Dr. Avinash Thakur', designation: 'Director', access: 'manager' },
+    Wadhwa: { name: 'Dr. L. K. Wadhwa', designation: 'Advisor', access: 'manager' },
+    Vishal: { name: 'Dr. Vishal', designation: 'Flyer approval', access: 'member' }
+  };
+  const users = rows('Users');
+  const ids = {};
+  Object.keys(people).forEach(function (k, i) {
+    const p = people[k];
+    let u = users.filter(function (x) { return x.name === p.name; })[0];
+    if (!u) {
+      u = { id: newId('U') + i, name: p.name, email: '', designation: p.designation, department: 'School of Business Management', access: p.access, phone: '', color: COLORS[(users.length + i) % COLORS.length], active: 'yes', salt: Utilities.getUuid(), hash: '', mustChange: 'yes', createdAt: nowStr(), lastLogin: '' };
+      put('Users', u);
+    }
+    ids[k] = u.id;
+  });
+  const me = rows('Users').filter(function (x) { return x.access === 'admin'; })[0];
+  const tasks = [], budget = [];
+  PLAN.forEach(function (r, i) {
+    const o = normTask({ code: r[0], activity: r[1], title: r[2], assignees: r[3].map(function (k) { return ids[k]; }).join(','), startDate: '2026-11-22', targetDate: r[4], status: 'Not Started', priority: 'Medium', budget: r[5], remarks: r[6] }, null, me);
+    o.id = o.id + i;
+    pushUpdate(o, me, 'Imported from Action Plan Tracker');
+    tasks.push(o);
+    if (Number(r[5]) > 0) budget.push(normBudget({ head: r[1], description: r[2], taskId: o.id, responsible: ids[r[3][0]], planned: r[5], dueDate: r[4], remarks: r[6] }, null, me));
+  });
+  appendMany('Tasks', tasks);
+  appendMany('Budget', budget);
+  setSetting('subtitle', 'Admission & Branding Action Plan · 22–30 Nov 2026');
+  addLog(me.name, 'bulk-tasks', tasks.length + ' tasks, ' + budget.length + ' budget lines (Action Plan Tracker)');
+  Logger.log('Imported ' + tasks.length + ' tasks and ' + budget.length + ' budget lines.');
 }
