@@ -334,7 +334,7 @@ footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-siz
  <button class="tab" data-v="desk">My desk <span id="myBadge"></span></button>
  <button class="tab" data-v="tasks">All tasks</button>
  <button class="tab" data-v="budget">Budget &amp; payments</button>
- <button class="tab" data-v="reports">Reports</button>
+ <button class="tab hide" data-v="reports" id="repTab">Reports</button>
  <button class="tab hide" data-v="admin" id="adminTab">Admin</button>
 </div></nav>
 <div class="demo hide" id="demoBar"><div class="wrap"><b>Demo mode</b><span>Sample data from your 22–30 Nov action plan, kept in this browser only. Admin: <b>admin@demo.in</b> / <b>Admin@123</b> (OTP shown on screen) · Member: <b>mahesh@demo.in</b> / <b>Demo@123</b></span><button class="btn sm line" id="resetDemo">Reset demo data</button></div></div>
@@ -711,6 +711,7 @@ function renderChrome() {
   $('#loginBtn').classList.toggle('hide', !!S.me);
   $('#userBox').classList.toggle('hide', !S.me);
   $('#adminTab').classList.toggle('hide', !isAdmin());
+  $('#repTab').classList.toggle('hide', !isAdmin());
   if (S.me) {
     $('#userBox').innerHTML = `${av(S.me.id)}<span class="sm" style="line-height:1.2"><b>${esc(S.me.name)}</b><br><span style="opacity:.75">${esc(S.me.access)}</span></span><button class="btn ghost sm" id="pwBtn">Password</button><button class="btn ghost sm" id="outBtn">Log out</button>`;
     $('#outBtn').onclick = logout; $('#pwBtn').onclick = () => changePw(false);
@@ -725,7 +726,7 @@ tick(); setInterval(tick, 20000);
 
 /* ===================================================================== ROUTER */
 const VIEWS = ['dashboard', 'desk', 'tasks', 'budget', 'reports', 'admin'];
-function go(v) { if (!VIEWS.includes(v)) v = 'dashboard'; if (v === 'admin' && !isAdmin()) v = 'dashboard'; S.view = v; if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); render(); scrollTo({ top: 0 }); }
+function go(v) { if (!VIEWS.includes(v)) v = 'dashboard'; if ((v === 'admin' || v === 'reports') && !isAdmin()) v = 'dashboard'; S.view = v; if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); render(); scrollTo({ top: 0 }); }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) go(b.dataset.v); });
 addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v !== S.view) go(v); });
 function render() {
@@ -1209,6 +1210,7 @@ function reportData() {
 }
 const GLABEL = { day: 'Day', week: 'Week', month: 'Month', person: 'Person', role: 'Role', status: 'Status', activity: 'Activity' };
 function rReports() {
+  if (!isAdmin()) { $('#v-reports').innerHTML = ''; return; }
   const el = $('#v-reports');
   const roles = [...new Set(S.users.map(u => u.designation).filter(Boolean))].sort();
   const { list, groups, a, b } = reportData();
@@ -1238,6 +1240,7 @@ function rReports() {
 function reportTitle() { const [a, b] = rangeOf(); return `${a === '0000-00-00' ? 'All dates' : fmtDY(a) + ' to ' + fmtDY(b)} · ${GLABEL[R.group]}-wise${R.person ? ' · ' + uName(R.person) : ''}${R.role ? ' · ' + R.role : ''}`; }
 const taskRow = t => ({ 'ID': t.code, 'Activity': t.activity, 'Task / Deliverable': t.title, 'Responsibility': t.ids.map(uName).join(' / '), 'Role': [...new Set(t.ids.map(i => (uMap()[i] || {}).designation || ''))].join(' / '), 'Priority': t.priority, 'Start Date': t.startDate, 'Target Date': t.targetDate, 'Closed Date': t.closedDate, 'Status': t.state === 'late' ? 'Overdue' : t.status, 'Progress %': t.progressN, 'Delay (Days)': t.delay, 'Budget (Rs)': t.budgetN, 'Remarks': t.remarks, 'Last update': (t.log[t.log.length - 1] || {}).msg || '' });
 async function exportExcel() {
+  if (!isAdmin()) return toast('Only the admin can download reports.', 'err');
   try { toast('Preparing Excel…'); await needLib('xlsx'); } catch (e) { return toast('Excel library could not load. Check your internet connection.', 'err'); }
   const { list, groups } = reportData();
   const wb = XLSX.utils.book_new();
@@ -1260,6 +1263,7 @@ async function exportExcel() {
   toast('Excel report downloaded', 'ok');
 }
 async function exportPDF() {
+  if (!isAdmin()) return toast('Only the admin can download reports.', 'err');
   try { toast('Preparing PDF…'); await needLib('pdf'); } catch (e) { return toast('PDF library could not load. Check your internet connection.', 'err'); }
   const { list, groups } = reportData();
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -1571,7 +1575,7 @@ function changePw(forced) {
   };
 }
 function localLogout() { S.token = null; S.me = null; S.allUsers = []; store.del('tm_token'); }
-async function logout() { await api('logout'); localLogout(); if (S.view === 'admin') S.view = 'dashboard'; await load(true); toast('Logged out'); }
+async function logout() { await api('logout'); localLogout(); if (S.view === 'admin' || S.view === 'reports') S.view = 'dashboard'; await load(true); toast('Logged out'); }
 $('#loginBtn').onclick = loginFlow;
 
 /* ===================================================================== HOW-TO TOUR */
@@ -1583,7 +1587,7 @@ function tour() {
     ['', 'Reminders that never forget', 'Every morning at 9 AM you get an email with overdue and due-tomorrow tasks and open payments. It repeats daily until you mark the task Completed.'],
     ['', 'Board & calendar views', '“All tasks” has Table, Board and Calendar views with search and filters. On the Board, drag your own card to another column to change its status.'],
     ['', 'All budget in one place', 'Budget & payments lists every planned, approved and paid amount with the balance and due date. The person responsible can record payments; nothing gets missed.'],
-    ['', 'Reports in one click', 'Reports → choose a day, week, month or custom range, filter by person or role, group it, then download Excel or PDF.'],
+    ...(who === 'admin' ? [['', 'Reports in one click', 'Reports (admin only) → choose a day, week, month or custom range, filter by person or role, group it, then download Excel or PDF.']] : []),
     ...(who === 'admin' || who === 'manager' ? [['', 'Admin & manager tools', (who === 'admin' ? 'Admin → People: create logins (each gets an email). Admin login is protected by a one-time code. ' : '') + 'Use “+ New task” to assign work, or “Bulk upload Excel” to assign a whole action plan at once — your existing tracker sheet works as it is.']] : []),
     ['', 'TV mode for the office', 'Tap “▶ TV mode” on a big screen. It cycles through the key numbers, runway, team and overdue list every 12 seconds and refreshes itself.']
   ];
