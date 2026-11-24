@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2E1A47">
+<title>SNBP Wakad Command Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* VOICE: a calm, confident operations room — the campus team's shared wall planner, readable at a glance.
+   IDEA: the "deadline runway" — every task is a coloured chip parked on the day it is due; today is the lit lane.
+   PICTURE: runway strip + per-person progress rings, under a plum band from the SNBP Wakad site.
+   COLOUR and TYPE: SNBP plum #2E1A47 dominant, white ground, coral #FF6B4A accent; status green/amber/red/grey. Plus Jakarta Sans.
+   LAYOUT: plum header band → tabs → finding line + KPIs → runway → team board → overdue / due-soon → charts → feed. */
+:root{color-scheme:light dark;
+ --bg:light-dark(#FBFAFD,#120B1C);--card:light-dark(#FFFFFF,#1C142B);--ink:light-dark(#1F1830,#EEE9F6);--mut:light-dark(#6E6585,#A99FBF);
+ --line:light-dark(#E8E3F0,#2E2442);--soft:light-dark(#F4F1F8,#241A35);--plum:#2E1A47;--plum2:#4A2D70;--acc:#FF6B4A;
+ --done:#0CA678;--prog:#F59F00;--late:#E03131;--todo:#868E96;--hold:#5C7CFA;--r:14px}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.55 "Plus Jakarta Sans",system-ui,Segoe UI,Arial,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{line-height:1.1;margin:0;text-wrap:balance}
+h2{font-size:22px;font-weight:800}h3{font-size:16px;font-weight:700}
+a{color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:0 max(3vw,14px)}
+/* header */
+.top{background:var(--plum);color:#fff;position:relative;overflow:hidden}
+.top::after{content:"";position:absolute;right:-120px;top:-160px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,#ff6b4a55,transparent 65%);pointer-events:none}
+.top .wrap{display:flex;gap:16px;align-items:center;justify-content:space-between;padding-block:16px;flex-wrap:wrap;position:relative;z-index:1}
+.brand{display:flex;gap:12px;align-items:center}
+.mark{width:46px;height:46px;border-radius:12px;background:#fff;color:var(--plum);display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:-.5px;flex:none}
+.brand small{display:block;opacity:.75;font-size:12.5px}
+.brand b{font-size:clamp(18px,2.4vw,24px);font-weight:800;display:block}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.clock{font-size:13px;opacity:.85;text-align:right;margin-right:6px}
+.btn{border:0;border-radius:10px;padding:10px 16px;min-height:42px;font-weight:700;cursor:pointer;background:var(--soft);color:var(--ink);display:inline-flex;gap:8px;align-items:center;justify-content:center;white-space:nowrap}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btn.pri{background:var(--acc);color:#fff}.btn.plum{background:var(--plum);color:#fff}
+.btn.ghost{background:#ffffff1f;color:#fff}.btn.line{background:transparent;border:1.5px solid var(--line)}
+.btn.sm{padding:6px 11px;min-height:34px;font-size:13px;border-radius:8px}
+.btn.red{background:#E031311a;color:var(--late)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.tabs{background:var(--plum2);position:sticky;top:0;z-index:30}
+.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tab{flex:none;background:none;border:0;color:#ffffffc0;padding:13px 16px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;font-size:14.5px}
+.tab.on{color:#fff;border-bottom-color:var(--acc)}
+.demo{background:#FFF3BF;color:#5c4400;font-size:13.5px;padding:8px 0}
+.demo .wrap{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+main{padding-block:22px 60px}
+.view{display:none}.view.on{display:block}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.card h3{margin-bottom:12px}
+.mut{color:var(--mut)}.sm{font-size:13px}
+.finding{font-size:clamp(22px,3vw,34px);font-weight:800;line-height:1.15;margin:4px 0 16px;text-wrap:balance}
+.finding em{font-style:normal;color:var(--acc)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:default}
+.kpi[data-go]{cursor:pointer}.kpi[data-go]:hover{border-color:var(--acc)}
+.kpi span{display:block;font-size:13px;color:var(--mut);font-weight:600}
+.kpi b{font-size:clamp(24px,3vw,32px);font-weight:800;display:block;line-height:1.2;white-space:nowrap}
+.kpi i{font-style:normal;font-size:12.5px;color:var(--mut)}
+.k-done b{color:var(--done)}.k-late b{color:var(--late)}.k-prog b{color:var(--prog)}
+/* runway */
+.runway{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x proximity}
+.day{flex:1 0 74px;min-height:210px;border-radius:12px;background:var(--soft);padding:8px 6px;display:flex;flex-direction:column;gap:5px;scroll-snap-align:start;border:2px solid transparent}
+.day.today{background:linear-gradient(180deg,#ff6b4a22,transparent 80%),var(--soft);border-color:var(--acc)}
+.day.past{opacity:.85}
+.day header{text-align:center;font-size:12px;color:var(--mut);font-weight:700;line-height:1.25;margin-bottom:4px}
+.day header b{display:block;font-size:19px;color:var(--ink)}
+.day.today header b{color:var(--acc)}
+.chips{display:flex;flex-direction:column-reverse;gap:4px;flex:1;justify-content:flex-start}
+.chip{border:0;border-radius:7px;padding:4px 6px;font-size:11.5px;font-weight:700;color:#fff;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:26px}
+.s-done{background:var(--done)}.s-prog{background:var(--prog)}.s-late{background:var(--late)}.s-todo{background:var(--todo)}.s-hold{background:var(--hold)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mut)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+/* status pill */
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+.p-done{background:#0CA6781f;color:var(--done)}.p-prog{background:#F59F0024;color:#B07000}.p-late{background:#E031311a;color:var(--late)}.p-todo{background:#868E961f;color:var(--mut)}.p-hold{background:#5C7CFA1f;color:var(--hold)}
+:root[data-theme=dark] .p-prog{color:var(--prog)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .p-prog{color:var(--prog)}}
+/* team */
+.team{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px}
+.person{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;gap:12px;align-items:center;cursor:pointer;text-align:left;width:100%}
+.person:hover{border-color:var(--acc)}
+.ring{--p:0;--c:var(--done);width:62px;height:62px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--soft) 0)}
+.ring b{width:48px;height:48px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:14px;font-weight:800}
+.ring.big{width:120px;height:120px}.ring.big b{width:94px;height:94px;font-size:26px}
+.person .nm{font-weight:800;line-height:1.2}
+.person .meta{font-size:12.5px;color:var(--mut)}
+.counts{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:12px;font-weight:700}
+.counts span{white-space:nowrap}
+.av{width:34px;height:34px;border-radius:50%;color:#fff;display:inline-grid;place-items:center;font-weight:800;font-size:12.5px;flex:none}
+.avs{display:inline-flex}.avs .av{width:28px;height:28px;font-size:11px;border:2px solid var(--card);margin-left:-6px}.avs .av:first-child{margin-left:0}
+/* lists */
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--soft);cursor:pointer;border-left:4px solid var(--todo)}
+.item.late{border-left-color:var(--late)}.item.done{border-left-color:var(--done)}.item.prog{border-left-color:var(--prog)}.item.hold{border-left-color:var(--hold)}
+.item>div:not(.r){flex:1 1 auto}.item .avs{flex:none}
+.item .t{font-weight:700;line-height:1.3}
+.item .m{font-size:12.5px;color:var(--mut)}
+.item .r{margin-left:auto;text-align:right;font-size:12.5px;font-weight:700;white-space:nowrap}
+.empty{padding:22px;text-align:center;color:var(--mut);background:var(--soft);border-radius:10px}
+.bars{display:flex;flex-direction:column;gap:12px}
+.bar label{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;font-weight:600;margin-bottom:5px}
+.bar label span:last-child{white-space:nowrap;color:var(--mut)}
+.track{height:12px;border-radius:99px;background:var(--soft);overflow:hidden;display:flex}
+.track i{display:block;height:100%}
+.lead{display:flex;flex-direction:column;gap:8px}
+.lead div{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--soft)}
+.lead .rank{font-weight:800;width:32px;text-align:center;color:var(--acc);font-size:13px}
+.lead .sc{margin-left:auto;font-weight:800;white-space:nowrap}
+.feed{display:flex;flex-direction:column;gap:10px;max-height:360px;overflow:auto}
+.feed div{font-size:13.5px;border-left:2px solid var(--line);padding-left:10px}
+.feed small{color:var(--mut);display:block}
+/* toolbar / forms */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar input,.toolbar select{min-height:42px}
+input,select,textarea{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;font-size:16px;width:100%}
+.toolbar input,.toolbar select{width:auto}
+.toolbar input[type=search]{flex:1 1 220px}
+textarea{min-height:76px;resize:vertical}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px}
+.f label{display:block;font-size:13px;font-weight:700;color:var(--mut);margin-bottom:4px}
+.f.full{grid-column:1/-1}
+.seg{display:inline-flex;background:var(--soft);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;padding:8px 13px;border-radius:8px;font-weight:700;cursor:pointer;min-height:36px;font-size:13.5px}
+.seg button.on{background:var(--card);box-shadow:0 1px 4px #0002}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.checks label{display:flex;gap:6px;align-items:center;background:var(--soft);padding:6px 10px;border-radius:8px;font-size:13.5px;cursor:pointer}
+.checks input{width:auto}
+/* tables */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12.5px;color:var(--mut);font-weight:700;padding:9px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap;background:var(--card);position:sticky;top:0}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--soft)}
+td.num,th.num{text-align:right;white-space:nowrap}
+.nowrap{white-space:nowrap}
+.pbar{height:7px;border-radius:9px;background:var(--soft);width:80px;overflow:hidden;margin-top:5px}
+.pbar i{display:block;height:100%;background:var(--prog)}
+/* kanban */
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
+.col{background:var(--soft);border-radius:var(--r);padding:10px;min-height:300px}
+.col.over{outline:2px dashed var(--acc)}
+.col h3{display:flex;justify-content:space-between;font-size:14px;margin:4px 4px 10px}
+.kc{background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--line);cursor:pointer;border-top:4px solid var(--todo)}
+.kc.late{border-top-color:var(--late)}.kc.done{border-top-color:var(--done)}.kc.prog{border-top-color:var(--prog)}.kc.hold{border-top-color:var(--hold)}
+.kc .t{font-weight:700;font-size:14px;line-height:1.3}
+.kc .m{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--mut)}
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal .h{font-size:12px;font-weight:700;color:var(--mut);text-align:center}
+.cal .c{min-height:96px;background:var(--soft);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:3px}
+.cal .c.o{opacity:.4}.cal .c.td{outline:2px solid var(--acc)}
+.cal .c b{font-size:12.5px}
+.cal .chip{font-size:10.5px;padding:2px 5px;min-height:20px}
+/* desk */
+.hero-desk{background:linear-gradient(120deg,var(--plum),var(--plum2));color:#fff;border-radius:18px;padding:22px;display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.hero-desk h2{font-size:clamp(22px,3vw,32px)}
+.hero-desk .ring b{background:var(--plum2);color:#fff}
+.hero-desk .ring{background:conic-gradient(var(--acc) calc(var(--p)*1%),#ffffff26 0)}
+.task-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;border-left:5px solid var(--todo)}
+.task-card.late{border-left-color:var(--late)}.task-card.prog{border-left-color:var(--prog)}.task-card.hold{border-left-color:var(--hold)}
+.task-card .t{font-weight:800;line-height:1.3;font-size:15.5px}
+.task-card .qa{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.task-card input[type=range]{width:130px;padding:0;border:0;accent-color:var(--acc)}
+/* modal */
+.mask{position:fixed;inset:0;background:#120b1cb3;z-index:80;display:none;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}
+.mask.on{display:flex}
+.modal{background:var(--card);border-radius:18px;width:min(720px,100%);box-shadow:0 30px 80px #0006;overflow:hidden;margin-bottom:4vh}
+.modal.wide{width:min(1100px,100%)}.modal.narrow{width:min(440px,100%)}
+.mh{background:var(--plum);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mh h2{font-size:19px}
+.mh .x{background:#ffffff22;border:0;color:#fff;width:38px;height:38px;border-radius:10px;font-size:20px;cursor:pointer;flex:none}
+.mb{padding:20px;max-height:74vh;overflow:auto}
+.mf{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.otp{font-size:28px;letter-spacing:12px;text-align:center;font-weight:800}
+.timeline{border-left:2px solid var(--line);margin-left:6px;padding-left:14px;display:flex;flex-direction:column;gap:10px;font-size:13.5px}
+.timeline small{display:block;color:var(--mut)}
+/* tour */
+.tour{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.tour>div{flex:0 0 100%;scroll-snap-align:start;padding:6px 4px}
+.tour .ill{height:130px;display:flex!important;gap:4px;justify-content:center;align-items:center;border-radius:14px;margin-bottom:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--plum),#6b3fa0);color:#fff;font-size:44px;font-weight:800}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.dots i{width:8px;height:8px;border-radius:9px;background:var(--line)}.dots i.on{background:var(--acc);width:22px}
+/* toast */
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(560px,92vw)}
+#toast div{background:#1F1830;color:#fff;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px #0005;font-weight:600;font-size:14px;pointer-events:auto}
+#toast div.err{background:var(--late)}#toast div.ok{background:#0b7d5c}
+/* TV */
+#tv{position:fixed;inset:0;background:var(--plum);color:#fff;z-index:90;display:none;padding:3vw;overflow:hidden}
+#tv.on{display:block}
+#tv .slide{display:none;height:100%;animation:fade .6s}#tv .slide.on{display:flex;flex-direction:column}
+#tv h1{font-size:clamp(28px,4vw,56px);margin-bottom:2vw}
+#tv .kpis .kpi{background:#ffffff14;border-color:#ffffff22;color:#fff}
+#tv .kpi span,#tv .kpi i{color:#ffffffb0}
+#tv .kpi b{font-size:clamp(36px,5vw,72px)}
+#tv .person,#tv .item,#tv .day{background:#ffffff12;color:#fff;border-color:#ffffff22}
+#tv .ring b{background:var(--plum);color:#fff}
+#tv .day header b{color:#fff}#tv .item .m,#tv .person .meta{color:#ffffffb0}
+#tv .tvbar{position:absolute;left:0;bottom:0;height:5px;background:var(--acc);animation:tvbar 12s linear infinite}
+@keyframes tvbar{from{width:0}to{width:100%}}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-size:13px}
+.hide{display:none!important}
+.spin{display:inline-block;width:16px;height:16px;border:2.5px solid #fff6;border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.badge{background:var(--acc);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;margin-left:4px}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;background:var(--soft)}
+.drop.over{border-color:var(--acc)}
+.warn{color:var(--late);font-weight:700}
+@media(max-width:600px){
+ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}
+ .stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:7.5em;text-align:start}
+ .stack td::before{content:attr(data-l);float:inline-start;width:7em;margin-inline-start:-7.5em;color:var(--mut);font-size:12px;font-weight:700}
+ .stack td:empty{display:none}
+ .clock{display:none}.top .wrap{padding-block:12px}
+ .mb{padding:16px}
+ .cal .c{min-height:64px}.cal .chip{font-size:0;padding:0;min-height:8px}
+}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="top">
+ <div class="wrap">
+  <div class="brand">
+   <div class="mark">SNBP</div>
+   <div><small>SNBP University · School of Business Management · Wakad Campus</small><b id="appTitle">Daily Activity Command Centre</b></div>
+  </div>
+  <div class="actions">
+   <div class="clock" id="clock"></div>
+   <button class="btn ghost sm" id="tvBtn" title="Full-screen display for the office TV">▶ TV mode</button>
+   <button class="btn ghost sm" id="helpBtn">How to use</button>
+   <button class="btn pri sm" id="loginBtn">Log in</button>
+   <div id="userBox" class="row hide"></div>
+  </div>
+ </div>
+</header>
+<nav class="tabs"><div class="wrap" id="tabs">
+ <button class="tab" data-v="dashboard">Dashboard</button>
+ <button class="tab" data-v="desk">My desk <span id="myBadge"></span></button>
+ <button class="tab" data-v="tasks">All tasks</button>
+ <button class="tab" data-v="budget">Budget &amp; payments</button>
+ <button class="tab" data-v="reports">Reports</button>
+ <button class="tab hide" data-v="admin" id="adminTab">Admin</button>
+</div></nav>
+<div class="demo hide" id="demoBar"><div class="wrap"><b>Demo mode</b><span>Sample data from your 22–30 Nov action plan, kept in this browser only. Admin: <b>admin@demo.in</b> / <b>Admin@123</b> (OTP shown on screen) · Member: <b>mahesh@demo.in</b> / <b>Demo@123</b></span><button class="btn sm line" id="resetDemo">Reset demo data</button></div></div>
+
+<main class="wrap">
+ <section class="view" id="v-dashboard"></section>
+ <section class="view" id="v-desk"></section>
+ <section class="view" id="v-tasks"></section>
+ <section class="view" id="v-budget"></section>
+ <section class="view" id="v-reports"></section>
+ <section class="view" id="v-admin"></section>
+</main>
+<footer><div class="wrap row between">
+ <span>SNBP University · School of Business Management, Wakad Campus, Pune 411057 · +91 90283 88150 · apply@snbpuniversity.edu.in</span>
+ <span id="syncInfo"></span>
+</div></footer>
+
+<div class="mask" id="mask"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div id="toast"></div>
+<div id="tv"></div>
+
+<script>
+{
+/* =====================================================================
+   CONFIG — paste your Google Apps Script Web App URL here.
+   Leave empty to run the built-in demo (data stays in this browser).
+   ===================================================================== */
+const API_URL = '';
+
+const DEMO = !API_URL;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { } }
+};
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const today = () => ymd(new Date());
+const parseD = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parseD(s); d.setDate(d.getDate() + n); return ymd(d); };
+const diffDays = (a, b) => Math.round((parseD(a) - parseD(b)) / 86400000);
+const fmtD = s => s ? parseD(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
+const fmtDY = s => s ? parseD(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const inr = n => '₹' + Math.round(Number(n) || 0).toLocaleString('en-IN');
+const rs = n => 'Rs. ' + Math.round(Number(n) || 0).toLocaleString('en-IN');
+const num = v => { const x = Number(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(x) ? 0 : x; };
+const initials = n => String(n || '?').replace(/\b(Dr|Mr|Mrs|Ms|Prof)\.?\s*/gi, '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+const STATUSES = ['Not Started', 'In Progress', 'On Hold', 'Completed'];
+const PAY = ['Pending', 'Partially Paid', 'Paid', 'On Hold'];
+const STATE_LABEL = { done: 'Completed', prog: 'In progress', late: 'Overdue', todo: 'Not started', hold: 'On hold' };
+const COLORS = ['#7C3AED', '#E8590C', '#0CA678', '#1C7ED6', '#D6336C', '#F59F00', '#5C7CFA', '#12B886', '#AE3EC9', '#FA5252'];
+
+/* ===================================================================== DEMO BACKEND */
+const Mock = (() => {
+  const KEY = 'tm_demo_db_v2';
+  const uid = p => p + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const now = () => new Date().toISOString().slice(0, 19);
+  function seed() {
+    const U = [
+      ['U1', 'Dr. Atul Kathole', 'admin@demo.in', 'Strategy & Digital Lead', 'admin', 'Admin@123'],
+      ['U2', 'Mr. Mahesh Karad', 'mahesh@demo.in', 'Admissions Manager', 'member', 'Demo@123'],
+      ['U3', 'Dr. Avinash Thakur', 'avinash@demo.in', 'Director', 'manager', 'Demo@123'],
+      ['U4', 'Dr. L. K. Wadhwa', 'wadhwa@demo.in', 'Advisor', 'manager', 'Demo@123']
+    ].map((u, i) => ({ id: u[0], name: u[1], email: u[2], designation: u[3], department: 'School of Business Management', access: u[4], pw: u[5], color: COLORS[i], active: 'yes', mustChange: 'no', phone: '', createdAt: now(), lastLogin: '' }));
+    const T = [
+      ['1.1', 'Programme Flyer – School of Management', 'Design professional flyer covering all School of Management programmes (BBA, BCA, MBA, MCA)', 'U2,U1', '2026-11-24', 'Soft copy for digital use and print', 'Completed', '2026-11-23'],
+      ['1.2', 'Programme Flyer – School of Management', 'Verify website address, official contact number and email ID; generate QR code', 'U2,U1', '2026-11-24', 'Cross-check every detail before release', 'Completed', '2026-11-24'],
+      ['1.3', 'Programme Flyer – School of Management', 'Final approval and release of print-ready and social-media versions', 'U2,U1', '2026-11-25', '', 'In Progress'],
+      ['2.1', 'Digital Marketing & Promotion', 'Organic circulation on Facebook, Instagram, LinkedIn and other relevant platforms', 'U1', '2026-11-25', 'Continue daily till 30 Nov', 'In Progress'],
+      ['2.2', 'Digital Marketing & Promotion', 'Paid promotion – Class XII students and 17–25 age group, 25 km radius around Wakad Campus', 'U1', '2026-11-26', 'Total digital budget ₹5,000 up to 30 Nov (incl. Google Ads)', 'Not Started', '', 5000],
+      ['2.3', 'Digital Marketing & Promotion', 'Explore and run Google Ads within the available budget', 'U1', '2026-11-27', 'Within ₹5,000 above', 'Not Started'],
+      ['2.4', 'Digital Marketing & Promotion', 'Track reach, clicks and enquiries from each platform', 'U1', '2026-11-30', 'Share summary report', 'Not Started'],
+      ['3.1', 'School / Junior College / Coaching Centre Outreach', '~15-slide presentation on career options after Class XII + 3 slides on SNBP University, Wakad Campus', 'U2', '2026-11-25', '', 'In Progress'],
+      ['3.2', 'School / Junior College / Coaching Centre Outreach', 'Prepare 4-minute promotional video on Wakad Campus and its programmes', 'U2', '2026-11-27', '', 'Not Started'],
+      ['3.3', 'School / Junior College / Coaching Centre Outreach', 'Identify 3–4 schools / junior colleges / coaching centres and obtain permission for a 30-minute session', 'U2', '2026-11-26', 'Record institution, contact person, visit date', 'Not Started'],
+      ['3.4', 'School / Junior College / Coaching Centre Outreach', 'Purchase 100 promotional articles with SBM – SNBP University, Wakad Campus branding (₹150–₹200 each)', 'U2', '2026-11-27', 'Maximum budget ₹20,000', 'Not Started', '', 20000],
+      ['3.5', 'School / Junior College / Coaching Centre Outreach', "Prepare attractive A3 flyer/poster for institutions' notice boards", 'U2', '2026-11-25', '', 'In Progress'],
+      ['3.6', 'School / Junior College / Coaching Centre Outreach', 'Conduct visits and presentations; distribute articles; request poster display', 'U2', '2026-11-30', 'Minimum 3–4 institutions', 'Not Started'],
+      ['4.1', 'Corporate & HR Outreach', 'Contact at least 3 companies / HR representatives; introduce SNBP brand and MBA programme', 'U2', '2026-11-27', '', 'Not Started'],
+      ['4.2', 'Corporate & HR Outreach', 'Arrange a visit to at least one organisation to promote the MBA programme', 'U2', '2026-11-30', '', 'Not Started'],
+      ['5.1', 'Newspaper Pamphlet Distribution', 'Prepare one-page promotional flyer for newspaper insertion', 'U2', '2026-11-25', '', 'Not Started'],
+      ['5.2', 'Newspaper Pamphlet Distribution', 'Print at least 5,000 pamphlets', 'U2', '2026-11-27', 'Budget as per actual expenses', 'Not Started'],
+      ['5.3', 'Newspaper Pamphlet Distribution', 'Arrange distribution through newspapers', 'U2', '2026-11-29', 'Record areas covered', 'Not Started'],
+      ['6.1', 'Strategic Planning & Budget Finalisation', 'Meeting of Dr. Atul Kathole and Mr. Mahesh with Dr. Ketan Desale', 'U1', '2026-11-26', '', 'Not Started'],
+      ['6.2', 'Strategic Planning & Budget Finalisation', 'Comprehensive strategic plan with time-wise execution calendar and detailed budget', 'U1', '2026-12-01', 'Deadline 1 Dec 2026', 'Not Started'],
+      ['7.1', 'Hoarding & Outdoor Branding', 'Identify prominent hoarding locations in Wakad – highways and major roads', 'U3', '2026-11-27', 'Primary approval by Dr. Avinash Thakur', 'Not Started'],
+      ['7.2', 'Hoarding & Outdoor Branding', 'Discuss options, obtain quotations and evaluate monthly expenditure', 'U3', '2026-11-30', 'Budget after quotations', 'Not Started'],
+      ['8.1', 'Finalisation of Promotional Agencies', 'Finalise engagement with College Wollage – Mr. Nadeem Patel', 'U4,U3', '2026-11-30', 'Proposed ₹50,000–₹60,000 for both agencies', 'Not Started', '', 60000],
+      ['8.2', 'Finalisation of Promotional Agencies', 'Finalise engagement with Digital News – Mr. Vikas Kadam', 'U4,U3', '2026-11-30', 'Included in 8.1 budget', 'Not Started'],
+      ['9.1', 'Student Lead Generation', 'Identify and collect at least 300 valid prospective student leads', 'U2', '2026-11-30', 'Target: 300 leads', 'In Progress'],
+      ['9.2', 'Student Lead Generation', 'Start calling and follow-up of collected leads', 'U2', '2026-12-07', 'Begins after first week of December', 'Not Started'],
+      ['10.1', 'CRM Implementation', "Ensure proper implementation of the University's CRM system for Wakad Campus", 'U2', '2026-11-30', '', 'Not Started'],
+      ['11.1', 'Office Readiness – Wakad Campus', 'Make office area fully ready in all respects; complete essential arrangements', 'U3', '2026-11-30', 'Operational before 1 Dec 2026', 'In Progress'],
+      ['12.1', 'Mobile Purchase', 'Mobile purchase for admissions office', 'U1', '2026-11-30', '', 'Not Started']
+    ].map((r, i) => ({
+      id: 'T' + (100 + i), code: r[0], activity: r[1], title: r[2], assignees: r[3], priority: i % 5 === 0 ? 'High' : 'Medium', startDate: '2026-11-22', targetDate: r[4],
+      closedDate: r[7] || '', status: r[6], progress: r[6] === 'Completed' ? '100' : r[6] === 'In Progress' ? String(30 + (i * 7) % 50) : '0', budget: String(r[8] || 0), remarks: r[5],
+      createdBy: 'U1', createdAt: '2026-11-22T10:00:00', updatedAt: now(), updates: JSON.stringify([{ t: '2026-11-22T10:00:00', by: 'Dr. Atul Kathole', msg: 'Imported from Excel' }].concat(r[6] !== 'Not Started' ? [{ t: '2026-11-24T09:30:00', by: U.find(u => u.id === r[3].split(',')[0]).name, msg: r[6] }] : []))
+    }));
+    const B = [
+      ['Digital Marketing', 'Paid promotion + Google Ads (Class XII, 17–25, 25 km)', 'T104', 'U1', 'Meta / Google', 5000, 5000, 2000, 'Partially Paid', 'UPI', '2026-11-26'],
+      ['Outreach', '100 branded promotional articles (₹150–₹200 each)', 'T110', 'U2', 'Local vendor', 20000, 20000, 0, 'Pending', '', '2026-11-27'],
+      ['Agencies', 'College Wollage + Digital News engagement', 'T122', 'U3', 'Mr. Nadeem Patel / Mr. Vikas Kadam', 60000, 0, 0, 'Pending', '', '2026-11-30'],
+      ['Print', 'Printing 5,000 newspaper pamphlets (as per actuals)', 'T116', 'U2', 'Printer – TBD', 0, 0, 0, 'Pending', '', '2026-11-27'],
+      ['Outdoor', 'Hoardings in Wakad (after quotations)', 'T121', 'U3', '', 0, 0, 0, 'On Hold', '', ''],
+      ['Office', 'Mobile phone for admissions office', 'T128', 'U1', '', 15000, 15000, 0, 'Pending', '', '2026-11-30']
+    ].map((b, i) => ({ id: 'B' + (10 + i), head: b[0], description: b[1], taskId: b[2], responsible: b[3], vendor: b[4], planned: String(b[5]), approved: String(b[6]), paid: String(b[7]), paymentStatus: b[8], mode: b[9], dueDate: b[10], paidDate: b[7] ? '2026-11-24' : '', reference: '', remarks: '', updatedAt: now(), updatedBy: 'Dr. Atul Kathole' }));
+    return {
+      users: U, tasks: T, budget: B, sessions: {},
+      settings: { title: 'Daily Activity Command Centre', subtitle: 'Admission & Branding Action Plan · 22–30 Nov 2026', publicBudget: 'yes', reminderOn: 'yes', dueSoonDays: '1', adminDigest: 'yes' },
+      log: [{ time: now(), user: 'Dr. Atul Kathole', action: 'bulk-tasks', detail: '29 tasks imported (demo seed)' }]
+    };
+  }
+  let db = store.get(KEY, null) || seed();
+  let otp = null;
+  const save = () => store.set(KEY, db);
+  const pub = u => ({ id: u.id, name: u.name, designation: u.designation, department: u.department, access: u.access, color: u.color, active: u.active });
+  const full = u => Object.assign(pub(u), { email: u.email, phone: u.phone, lastLogin: u.lastLogin, createdAt: u.createdAt });
+  const log = (u, a, d) => { db.log.unshift({ time: now(), user: u, action: a, detail: d }); db.log = db.log.slice(0, 300); };
+  const upd = (t, me, msg) => { let u = []; try { u = JSON.parse(t.updates || '[]'); } catch (e) { } u.push({ t: now(), by: me.name, msg }); t.updates = JSON.stringify(u.slice(-40)); };
+  function normTask(t, base, me) {
+    const o = base ? { ...base } : { id: uid('T'), createdBy: me.id, createdAt: now(), updates: '[]' };
+    ['code', 'activity', 'title', 'priority', 'remarks', 'startDate', 'targetDate', 'closedDate'].forEach(k => { if (t[k] !== undefined) o[k] = String(t[k]); });
+    if (t.assignees !== undefined) o.assignees = (Array.isArray(t.assignees) ? t.assignees : String(t.assignees).split(',')).filter(Boolean).join(',');
+    if (t.status !== undefined) o.status = STATUSES.includes(t.status) ? t.status : 'Not Started';
+    if (t.progress !== undefined) o.progress = String(Math.max(0, Math.min(100, num(t.progress))));
+    if (t.budget !== undefined) o.budget = String(num(t.budget));
+    o.status = o.status || 'Not Started'; o.priority = o.priority || 'Medium';
+    if (o.status === 'Completed') { if (!o.closedDate) o.closedDate = today(); o.progress = '100'; } else if (t.status !== undefined) o.closedDate = '';
+    o.updatedAt = now(); return o;
+  }
+  function normBudget(b, base, me) {
+    const o = base ? { ...base } : { id: uid('B') };
+    ['head', 'description', 'taskId', 'responsible', 'vendor', 'mode', 'reference', 'remarks', 'dueDate', 'paidDate'].forEach(k => { if (b[k] !== undefined) o[k] = String(b[k]); });
+    ['planned', 'approved', 'paid'].forEach(k => { if (b[k] !== undefined) o[k] = String(num(b[k])); });
+    if (b.paymentStatus !== undefined) o.paymentStatus = PAY.includes(b.paymentStatus) ? b.paymentStatus : 'Pending';
+    o.paymentStatus = o.paymentStatus || 'Pending';
+    if (o.paymentStatus === 'Paid' && !o.paidDate) o.paidDate = today();
+    o.updatedAt = now(); o.updatedBy = me.name; return o;
+  }
+  function sess(u) { const t = uid('S'); db.sessions[t] = u.id; u.lastLogin = now(); log(u.name, 'login', u.access); save(); return { ok: true, token: t, user: full(u), mustChange: u.mustChange === 'yes' }; }
+  function handle(p) {
+    const a = p.action;
+    if (a === 'public') return { ok: true, today: today(), settings: db.settings, users: db.users.filter(u => u.active === 'yes').map(pub), tasks: db.tasks, budget: db.settings.publicBudget === 'yes' ? db.budget : [] };
+    if (a === 'login') {
+      const u = db.users.find(x => x.email === String(p.email || '').trim().toLowerCase() && x.active === 'yes');
+      if (!u || u.pw !== p.password) return { ok: false, error: 'Incorrect email or password.' };
+      if (u.access === 'admin') { otp = { email: u.email, code: String(100000 + Math.floor(Math.random() * 900000)) }; return { ok: true, otp: true, sentTo: u.email, demoCode: otp.code }; }
+      return sess(u);
+    }
+    if (a === 'verifyOtp') {
+      if (!otp || otp.email !== String(p.email).trim().toLowerCase() || otp.code !== String(p.code).trim()) return { ok: false, error: 'Wrong code.' };
+      otp = null; return sess(db.users.find(x => x.email === String(p.email).trim().toLowerCase()));
+    }
+    if (a === 'forgot') return { ok: true, message: 'Demo: in the live version a reset code is emailed.' };
+    if (a === 'resetWithCode') return { ok: false, error: 'Not available in the demo.' };
+    const me = db.users.find(u => u.id === db.sessions[p.token] && u.active === 'yes');
+    if (!me) return { ok: false, auth: false, error: 'Session expired. Please log in again.' };
+    const mgr = me.access !== 'member', adm = me.access === 'admin';
+    const canEdit = t => mgr || String(t.assignees).split(',').includes(me.id) || t.createdBy === me.id;
+    const no = { ok: false, error: 'Not allowed for your role.' };
+    let r;
+    switch (a) {
+      case 'data': r = { ok: true, today: today(), me: full(me), settings: db.settings, users: db.users.filter(u => u.active === 'yes').map(pub), tasks: db.tasks, budget: db.budget };
+        if (adm) { r.allUsers = db.users.map(full); r.log = db.log; r.mailQuota = 'demo'; } return r;
+      case 'logout': delete db.sessions[p.token]; save(); return { ok: true };
+      case 'saveTask': {
+        const t = { ...p.task }; const ex = t.id ? db.tasks.find(x => x.id === t.id) : null;
+        if (ex && !canEdit(ex)) return no;
+        if (!mgr) { if (!ex) t.assignees = me.id; else delete t.assignees; }
+        const o = normTask(t, ex, me);
+        if (!o.title) return { ok: false, error: 'Task title is required.' };
+        if (!o.assignees) return { ok: false, error: 'Assign the task to at least one person.' };
+        upd(o, me, ex ? (t.note || 'Edited · status ' + o.status) : 'Created');
+        if (ex) db.tasks[db.tasks.indexOf(ex)] = o; else db.tasks.push(o);
+        log(me.name, ex ? 'task-edit' : 'task-create', o.code + ' ' + o.title); save(); return { ok: true, task: o };
+      }
+      case 'updateTask': {
+        const ex = db.tasks.find(x => x.id === p.id); if (!ex) return { ok: false, error: 'Not found' }; if (!canEdit(ex)) return no;
+        const ch = {}; if (p.status) ch.status = p.status; if (p.progress !== undefined && p.progress !== '') ch.progress = p.progress;
+        const o = normTask(ch, ex, me); if (p.closedDate && o.status === 'Completed') o.closedDate = p.closedDate;
+        upd(o, me, (p.status || 'Progress ' + o.progress + '%') + (p.note ? ' — ' + p.note : ''));
+        db.tasks[db.tasks.indexOf(ex)] = o; log(me.name, 'task-update', o.code + ' → ' + o.status); save(); return { ok: true, task: o };
+      }
+      case 'deleteTask': { const ex = db.tasks.find(x => x.id === p.id); if (!ex || !(mgr || ex.createdBy === me.id)) return no; db.tasks = db.tasks.filter(x => x !== ex); log(me.name, 'task-delete', ex.title); save(); return { ok: true }; }
+      case 'bulkTasks': {
+        if (!mgr) return no;
+        const all = (p.tasks || []).map(t => { const o = normTask(t, null, me); upd(o, me, 'Imported from Excel'); return o; });
+        db.tasks.push(...all.filter(o => o.title));
+        const bl = (p.budget || []).map(b => { if (all[b.taskIndex]) b.taskId = all[b.taskIndex].id; return normBudget(b, null, me); });
+        db.budget.push(...bl); log(me.name, 'bulk-tasks', all.length + ' tasks'); save(); return { ok: true, count: all.length, budgetCount: bl.length };
+      }
+      case 'saveUser': {
+        if (!adm) return no; const u = p.user; const email = String(u.email || '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: 'Valid email required.' };
+        const ex = u.id ? db.users.find(x => x.id === u.id) : null;
+        if (db.users.some(x => x.email === email && x !== ex)) return { ok: false, error: 'Email already exists.' };
+        const o = ex || { id: uid('U'), pw: 'Demo@123', color: COLORS[db.users.length % COLORS.length], mustChange: 'no', createdAt: now(), lastLogin: '' };
+        Object.assign(o, { name: u.name, email, designation: u.designation, department: u.department, access: u.access || 'member', phone: u.phone || '', active: u.active === 'no' ? 'no' : 'yes' });
+        if (!ex) db.users.push(o); log(me.name, ex ? 'user-edit' : 'user-create', o.name); save();
+        return { ok: true, user: full(o), message: ex ? 'Saved' : 'User created. Demo password: Demo@123 (live version emails a temporary password).' };
+      }
+      case 'bulkUsers': {
+        if (!adm) return no; let n = 0;
+        (p.users || []).forEach(u => { const email = String(u.email || '').trim().toLowerCase(); if (!email || db.users.some(x => x.email === email) || !u.name) return; db.users.push({ id: uid('U') + n, name: u.name, email, designation: u.designation || '', department: u.department || '', access: ['manager', 'member'].includes(u.access) ? u.access : 'member', phone: u.phone || '', pw: 'Demo@123', color: COLORS[db.users.length % COLORS.length], active: 'yes', mustChange: 'no', createdAt: now(), lastLogin: '' }); n++; });
+        log(me.name, 'bulk-users', n + ' users'); save(); return { ok: true, count: n };
+      }
+      case 'deleteUser': if (!adm || p.id === me.id) return no; db.users = db.users.filter(u => u.id !== p.id); save(); return { ok: true };
+      case 'resetPassword': if (!adm) return no; return { ok: true, message: 'Demo: a new temporary password would be emailed.' };
+      case 'changePassword': if (p.oldPassword !== me.pw) return { ok: false, error: 'Current password is wrong.' }; if (String(p.newPassword).length < 6) return { ok: false, error: 'Min 6 characters.' }; me.pw = p.newPassword; me.mustChange = 'no'; save(); return { ok: true };
+      case 'saveBudget': {
+        const b = { ...p.item }; const ex = b.id ? db.budget.find(x => x.id === b.id) : null;
+        if (!mgr && !(ex && ex.responsible === me.id)) return no;
+        if (!mgr) { delete b.planned; delete b.approved; delete b.responsible; }
+        const o = normBudget(b, ex, me); if (ex) db.budget[db.budget.indexOf(ex)] = o; else db.budget.push(o);
+        log(me.name, 'budget-save', o.description); save(); return { ok: true, item: o };
+      }
+      case 'deleteBudget': if (!mgr) return no; db.budget = db.budget.filter(b => b.id !== p.id); save(); return { ok: true };
+      case 'bulkBudget': if (!mgr) return no; db.budget.push(...(p.items || []).map(b => normBudget(b, null, me))); save(); return { ok: true, count: (p.items || []).length };
+      case 'saveSettings': if (!adm) return no; Object.assign(db.settings, p.settings); save(); return { ok: true, settings: db.settings };
+      case 'sendReminders': if (!adm) return no; return { ok: true, message: 'Demo: reminder emails go out every morning at 9 AM in the live version.' };
+    }
+    return { ok: false, error: 'Unknown action' };
+  }
+  return {
+    call: p => new Promise(res => setTimeout(() => res(JSON.parse(JSON.stringify(handle(p)))), 160)),
+    reset() { db = seed(); save(); }
+  };
+})();
+
+async function api(action, payload = {}) {
+  const body = { action, token: S.token, ...payload };
+  if (DEMO) return Mock.call(body);
+  try {
+    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+    return await r.json();
+  } catch (e) {
+    return { ok: false, error: 'Network error — check your connection and try again.' };
+  }
+}
+
+/* ===================================================================== STATE */
+const S = {
+  token: store.get('tm_token', null), me: null, users: [], allUsers: [], tasks: [], budget: [], settings: {}, log: [],
+  view: 'dashboard', tview: store.get('tm_tview', 'table'), f: { q: '', person: '', status: '', activity: '', priority: '' },
+  cal: today().slice(0, 7), adminTab: 'users', loadedAt: null, mailQuota: null
+};
+const uMap = () => Object.fromEntries((S.allUsers.length ? S.allUsers : S.users).map(u => [u.id, u]));
+const uName = id => (uMap()[id] || {}).name || 'Unassigned';
+const isAdmin = () => S.me && S.me.access === 'admin';
+const isMgr = () => S.me && (S.me.access === 'admin' || S.me.access === 'manager');
+const canEdit = t => S.me && (isMgr() || t.ids.includes(S.me.id) || t.createdBy === S.me.id);
+
+function derive(t) {
+  const td = today();
+  t.ids = String(t.assignees || '').split(',').filter(Boolean);
+  t.progressN = t.status === 'Completed' ? 100 : (num(t.progress) || 0);
+  t.budgetN = num(t.budget);
+  t.overdue = t.status !== 'Completed' && !!t.targetDate && t.targetDate < td;
+  t.delay = !t.targetDate ? 0 : t.closedDate ? Math.max(0, diffDays(t.closedDate, t.targetDate)) : (td > t.targetDate ? diffDays(td, t.targetDate) : 0);
+  t.dueIn = t.targetDate ? diffDays(t.targetDate, td) : null;
+  t.state = t.status === 'Completed' ? 'done' : t.overdue ? 'late' : t.status === 'In Progress' ? 'prog' : t.status === 'On Hold' ? 'hold' : 'todo';
+  t.onTime = t.status === 'Completed' && t.delay === 0;
+  try { t.log = JSON.parse(t.updates || '[]'); } catch (e) { t.log = []; }
+  return t;
+}
+function deriveB(b) {
+  b.plannedN = num(b.planned); b.approvedN = num(b.approved); b.paidN = num(b.paid);
+  b.base = b.approvedN || b.plannedN; b.balance = Math.max(0, b.base - b.paidN);
+  b.dueSoon = b.paymentStatus !== 'Paid' && b.dueDate && b.dueDate <= addDays(today(), 2);
+  b.late = b.paymentStatus !== 'Paid' && b.dueDate && b.dueDate < today();
+  return b;
+}
+function stats(list) {
+  const s = { total: list.length, done: 0, prog: 0, late: 0, todo: 0, hold: 0, dueToday: 0, dueSoon: 0, onTime: 0, budget: 0 };
+  list.forEach(t => { s[t.state]++; if (t.state !== 'done' && t.dueIn === 0) s.dueToday++; if (t.state !== 'done' && t.dueIn > 0 && t.dueIn <= 3) s.dueSoon++; if (t.onTime) s.onTime++; s.budget += t.budgetN; });
+  s.pct = s.total ? Math.round(s.done / s.total * 100) : 0;
+  s.open = s.total - s.done;
+  return s;
+}
+function bstats(list) {
+  const s = { planned: 0, approved: 0, paid: 0, balance: 0, pending: 0, base: 0 };
+  list.forEach(b => { s.planned += b.plannedN; s.approved += b.approvedN; s.paid += b.paidN; s.balance += b.balance; s.base += b.base; if (b.paymentStatus !== 'Paid') s.pending++; });
+  s.pct = s.base ? Math.round(s.paid / s.base * 100) : 0;
+  return s;
+}
+function apply(r) {
+  S.settings = r.settings || {};
+  S.users = r.users || [];
+  S.allUsers = r.allUsers || [];
+  S.tasks = (r.tasks || []).map(derive);
+  S.budget = (r.budget || []).map(deriveB);
+  S.log = r.log || [];
+  S.mailQuota = r.mailQuota ?? null;
+  if (r.me) S.me = r.me;
+  S.loadedAt = new Date();
+  $('#appTitle').textContent = S.settings.title || 'Daily Activity Command Centre';
+}
+async function load(quiet) {
+  let r = S.token ? await api('data') : await api('public');
+  if (!r.ok && r.auth === false) { localLogout(); r = await api('public'); }
+  if (!r.ok) { if (!quiet) toast(r.error || 'Could not load data', 'err'); return false; }
+  apply(r);
+  renderChrome();
+  render();
+  return true;
+}
+
+/* ===================================================================== UI HELPERS */
+function toast(msg, type = '') {
+  const d = document.createElement('div');
+  d.className = type; d.textContent = msg;
+  $('#toast').appendChild(d);
+  setTimeout(() => d.remove(), type === 'err' ? 6000 : 4000);
+}
+let modalClose = null;
+function modal(title, body, foot = '', size = '', onClose = null) {
+  const m = $('#modal');
+  m.className = 'modal ' + size;
+  m.innerHTML = `<div class="mh"><h2>${esc(title)}</h2><button class="x" data-close aria-label="Close">×</button></div><div class="mb">${body}</div>${foot ? `<div class="mf">${foot}</div>` : ''}`;
+  $('#mask').classList.add('on');
+  modalClose = onClose;
+  $$('[data-close]', m).forEach(b => b.onclick = closeModal);
+  const f = m.querySelector('input:not([type=hidden]):not([type=checkbox]),select,textarea');
+  if (f && !size.includes('noauto')) setTimeout(() => f.focus(), 50);
+  return m;
+}
+function closeModal() { $('#mask').classList.remove('on'); const c = modalClose; modalClose = null; if (c) c(); }
+$('#mask').addEventListener('mousedown', e => { if (e.target.id === 'mask') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#tv').classList.contains('on')) stopTV(); else if ($('#mask').classList.contains('on')) closeModal(); } });
+function busy(btn, on) { if (!btn) return; if (on) { btn.dataset.t = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true; } else { btn.innerHTML = btn.dataset.t || btn.innerHTML; btn.disabled = false; } }
+const av = id => { const u = uMap()[id] || { name: '?', color: '#999' }; return `<span class="av" style="background:${esc(u.color || '#888')}" title="${esc(u.name)}">${esc(initials(u.name))}</span>`; };
+const avs = ids => `<span class="avs">${ids.map(av).join('')}</span>`;
+const pill = t => `<span class="pill p-${t.state}">${t.state === 'late' ? 'Overdue · ' + t.delay + 'd' : esc(t.status)}</span>`;
+const ring = (p, c, big) => `<div class="ring${big ? ' big' : ''}" style="--p:${p};--c:${c}"><b>${p}%</b></div>`;
+const dueText = t => t.state === 'done' ? (t.delay ? `Done ${t.delay}d late` : 'Done on time') : t.dueIn == null ? 'No date' : t.dueIn < 0 ? `${-t.dueIn}d overdue` : t.dueIn === 0 ? 'Due today' : t.dueIn === 1 ? 'Due tomorrow' : `In ${t.dueIn} days`;
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas'); c.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:100'; c.width = innerWidth; c.height = innerHeight; document.body.appendChild(c);
+  const x = c.getContext('2d'); const cols = ['#FF6B4A', '#0CA678', '#F59F00', '#7C3AED', '#ffffff'];
+  const ps = Array.from({ length: 90 }, () => ({ x: innerWidth / 2, y: innerHeight / 2, vx: (Math.random() - .5) * 14, vy: Math.random() * -14 - 4, c: cols[Math.floor(Math.random() * 5)], s: 4 + Math.random() * 5 }));
+  let n = 0; (function f() { x.clearRect(0, 0, c.width, c.height); ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .45; x.fillStyle = p.c; x.fillRect(p.x, p.y, p.s, p.s * 1.6); }); if (++n < 90) requestAnimationFrame(f); else c.remove(); })();
+}
+
+/* ===================================================================== CHROME */
+function renderChrome() {
+  $('#demoBar').classList.toggle('hide', !DEMO);
+  $('#loginBtn').classList.toggle('hide', !!S.me);
+  $('#userBox').classList.toggle('hide', !S.me);
+  $('#adminTab').classList.toggle('hide', !isAdmin());
+  if (S.me) {
+    $('#userBox').innerHTML = `${av(S.me.id)}<span class="sm" style="line-height:1.2"><b>${esc(S.me.name)}</b><br><span style="opacity:.75">${esc(S.me.access)}</span></span><button class="btn ghost sm" id="pwBtn">Password</button><button class="btn ghost sm" id="outBtn">Log out</button>`;
+    $('#outBtn').onclick = logout; $('#pwBtn').onclick = () => changePw(false);
+    const mine = S.tasks.filter(t => t.ids.includes(S.me.id) && t.state !== 'done');
+    const late = mine.filter(t => t.state === 'late').length;
+    $('#myBadge').innerHTML = mine.length ? `<span class="badge" style="${late ? 'background:var(--late)' : ''}">${mine.length}</span>` : '';
+  } else $('#myBadge').innerHTML = '';
+  $('#syncInfo').textContent = S.loadedAt ? 'Updated ' + S.loadedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + (DEMO ? ' · demo' : ' · live') : '';
+}
+function tick() { const d = new Date(); $('#clock').innerHTML = `<b>${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</b><br>${d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}`; }
+tick(); setInterval(tick, 20000);
+
+/* ===================================================================== ROUTER */
+const VIEWS = ['dashboard', 'desk', 'tasks', 'budget', 'reports', 'admin'];
+function go(v) { if (!VIEWS.includes(v)) v = 'dashboard'; if (v === 'admin' && !isAdmin()) v = 'dashboard'; S.view = v; if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); render(); scrollTo({ top: 0 }); }
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) go(b.dataset.v); });
+addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v !== S.view) go(v); });
+function render() {
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === S.view));
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + S.view));
+  ({ dashboard: rDash, desk: rDesk, tasks: rTasks, budget: rBudget, reports: rReports, admin: rAdmin })[S.view]();
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-task]'); if (c) { e.stopPropagation(); openTask(c.dataset.task); return; }
+  const p = e.target.closest('[data-person]'); if (p) { openPerson(p.dataset.person); return; }
+  const g = e.target.closest('[data-go]'); if (g) { const [v, st] = g.dataset.go.split(':'); if (st !== undefined) S.f.status = st; go(v); }
+});
+
+/* ===================================================================== DASHBOARD */
+function runwayHTML(tasks, tv) {
+  const ds = tasks.map(t => t.targetDate).filter(Boolean).sort();
+  if (!ds.length) return '<div class="empty">No dated tasks yet.</div>';
+  const td = today();
+  let a = ds[0] < td ? ds[0] : td, b = ds[ds.length - 1] > td ? ds[ds.length - 1] : td;
+  if (diffDays(b, a) > 20) { a = addDays(td, -6) > a ? addDays(td, -6) : a; b = addDays(a, 20); }
+  const days = []; for (let d = a; d <= b; d = addDays(d, 1)) days.push(d);
+  return `<div class="runway">${days.map(d => {
+    const list = tasks.filter(t => t.targetDate === d);
+    const dt = parseD(d);
+    return `<div class="day${d === td ? ' today' : d < td ? ' past' : ''}"><header>${dt.toLocaleDateString('en-IN', { weekday: 'short' })}<b>${dt.getDate()}</b>${dt.toLocaleDateString('en-IN', { month: 'short' })}${list.length ? ' · ' + list.length : ''}</header>
+    <div class="chips">${list.map(t => `<button class="chip s-${t.state}" data-task="${esc(t.id)}" title="${esc((t.code ? t.code + ' · ' : '') + t.title + ' — ' + t.ids.map(uName).join(', ') + ' · ' + STATE_LABEL[t.state])}">${esc(t.code || '•')} ${tv ? '' : esc(initials(uName(t.ids[0])))}</button>`).join('')}</div></div>`;
+  }).join('')}</div>`;
+}
+const legend = `<div class="legend"><span><i class="s-done"></i>Completed</span><span><i class="s-prog"></i>In progress</span><span><i class="s-todo"></i>Not started</span><span><i class="s-hold"></i>On hold</span><span><i class="s-late"></i>Overdue</span></div>`;
+function people() {
+  const ids = new Set(S.tasks.flatMap(t => t.ids));
+  return S.users.filter(u => ids.has(u.id) || u.active === 'yes').map(u => ({ u, s: stats(S.tasks.filter(t => t.ids.includes(u.id))) })).filter(x => x.s.total || x.u.access !== 'admin' || true);
+}
+function teamHTML() {
+  const ps = people().filter(p => p.s.total);
+  if (!ps.length) return '<div class="empty">No one has tasks yet.</div>';
+  return `<div class="team">${ps.map(({ u, s }) => `<button class="person" data-person="${esc(u.id)}">${ring(s.pct, s.late ? 'var(--late)' : 'var(--done)')}
+   <div><div class="nm">${esc(u.name)}</div><div class="meta">${esc(u.designation || u.access)}</div>
+   <div class="counts"><span style="color:var(--done)">✓ ${s.done}</span><span style="color:var(--prog)">◐ ${s.prog}</span><span class="mut">○ ${s.todo + s.hold}</span>${s.late ? `<span style="color:var(--late)">⚠ ${s.late} late</span>` : ''}</div></div></button>`).join('')}</div>`;
+}
+function itemHTML(t) {
+  return `<div class="item ${t.state}" data-task="${esc(t.id)}">${avs(t.ids)}<div><div class="t">${t.code ? `<span class="mut">${esc(t.code)}</span> ` : ''}${esc(t.title)}</div><div class="m">${esc(t.ids.map(uName).join(', '))} · ${esc(t.activity || '')}</div></div><div class="r" style="color:${t.state === 'late' ? 'var(--late)' : 'inherit'}">${dueText(t)}<div class="mut" style="font-weight:500">${fmtD(t.targetDate)}</div></div></div>`;
+}
+function leaderboard() {
+  const ps = people().filter(p => p.s.total).map(p => ({ ...p, score: p.s.onTime * 10 + (p.s.done - p.s.onTime) * 5 + p.s.prog * 2 - p.s.late * 3 })).sort((a, b) => b.score - a.score);
+  if (!ps.length) return '<div class="empty">No scores yet.</div>';
+  const medal = ['1st', '2nd', '3rd'];
+  return `<div class="lead">${ps.map((p, i) => `<div data-person="${esc(p.u.id)}" style="cursor:pointer"><span class="rank">${medal[i] || i + 1}</span>${av(p.u.id)}<span><b>${esc(p.u.name)}</b><br><span class="sm mut">${p.s.onTime} on time · ${p.s.late} overdue</span></span><span class="sc">${p.score} pts</span></div>`).join('')}</div>
+   <p class="sm mut" style="margin:10px 0 0">On-time finish 10 pts · late finish 5 · in progress 2 · each overdue −3.</p>`;
+}
+function activityBars() {
+  const g = {}; S.tasks.forEach(t => { const k = t.activity || 'General'; (g[k] = g[k] || []).push(t); });
+  const rows = Object.entries(g).map(([k, l]) => [k, stats(l)]).sort((a, b) => a[1].pct - b[1].pct);
+  if (!rows.length) return '<div class="empty">No activities yet.</div>';
+  return `<div class="bars">${rows.map(([k, s]) => `<div class="bar"><label><span>${esc(k)}</span><span>${s.done}/${s.total} · ${s.pct}%</span></label><div class="track">
+   <i style="width:${s.done / s.total * 100}%;background:var(--done)"></i><i style="width:${s.prog / s.total * 100}%;background:var(--prog)"></i><i style="width:${s.late / s.total * 100}%;background:var(--late)"></i></div></div>`).join('')}</div>`;
+}
+function feedHTML() {
+  const f = S.tasks.flatMap(t => t.log.map(l => ({ ...l, t2: t }))).sort((a, b) => (a.t < b.t ? 1 : -1)).slice(0, 15);
+  if (!f.length) return '<div class="empty">No updates yet.</div>';
+  return `<div class="feed">${f.map(l => `<div data-task="${esc(l.t2.id)}" style="cursor:pointer"><b>${esc(l.by)}</b> · ${esc(l.msg)}<br><span>${esc((l.t2.code ? l.t2.code + ' ' : '') + l.t2.title)}</span><small>${esc(String(l.t).replace('T', ' ').slice(0, 16))}</small></div>`).join('')}</div>`;
+}
+function rDash() {
+  const s = stats(S.tasks), b = bstats(S.budget);
+  const late = S.tasks.filter(t => t.state === 'late').sort((a, c) => a.targetDate < c.targetDate ? -1 : 1);
+  const soon = S.tasks.filter(t => t.state !== 'done' && t.state !== 'late' && t.dueIn !== null && t.dueIn <= 3).sort((a, c) => a.targetDate < c.targetDate ? -1 : 1);
+  const finding = !s.total ? 'No tasks yet — the admin can add tasks or upload the action-plan Excel.' :
+    `<em>${s.done} of ${s.total}</em> tasks done (${s.pct}%) · ${s.late ? `<span style="color:var(--late)">${s.late} overdue</span>` : 'nothing overdue'} · ${s.dueToday} due today`;
+  $('#v-dashboard').innerHTML = `
+  <p class="mut sm" style="margin:0">${esc(S.settings.subtitle || '')}</p>
+  <h1 class="finding">${finding}</h1>
+  <div class="kpis">
+   <div class="kpi" data-go="tasks:"><span>Total tasks</span><b>${s.total}</b><i>${S.users.length} people</i></div>
+   <div class="kpi k-done" data-go="tasks:done"><span>Completed</span><b>${s.done}</b><i>${s.onTime} on time</i></div>
+   <div class="kpi k-prog" data-go="tasks:prog"><span>In progress</span><b>${s.prog}</b><i>${s.todo} not started</i></div>
+   <div class="kpi k-late" data-go="tasks:late"><span>Overdue</span><b>${s.late}</b><i>reminded daily</i></div>
+   <div class="kpi" data-go="tasks:open"><span>Due today</span><b>${s.dueToday}</b><i>${s.dueSoon} in next 3 days</i></div>
+   ${S.budget.length ? `<div class="kpi" data-go="budget"><span>Budget paid</span><b>${inr(b.paid)}</b><i>of ${inr(b.base)} · ${b.pending} pending</i></div>` : ''}
+  </div>
+  <div class="card" style="margin-bottom:14px"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">Deadline runway — every task parked on its due day</h3>${legend}</div>${runwayHTML(S.tasks)}</div>
+  <div class="card" style="margin-bottom:14px"><h3>Team board <span class="mut sm" style="font-weight:500">— tap a person to see their tasks</span></h3>${teamHTML()}</div>
+  <div class="grid g2" style="margin-bottom:14px">
+   <div class="card"><h3 style="color:var(--late)">Overdue (${late.length})</h3><div class="list">${late.length ? late.map(itemHTML).join('') : '<div class="empty">Nothing overdue. Great going.</div>'}</div></div>
+   <div class="card"><h3>Due in the next 3 days (${soon.length})</h3><div class="list">${soon.length ? soon.map(itemHTML).join('') : '<div class="empty">Nothing due in the next 3 days.</div>'}</div></div>
+  </div>
+  <div class="grid g3">
+   <div class="card"><h3>Progress by activity</h3>${activityBars()}</div>
+   <div class="card"><h3>On-time champions</h3>${leaderboard()}</div>
+   <div class="card"><h3>Live updates</h3>${feedHTML()}</div>
+  </div>`;
+}
+function openPerson(id) {
+  const u = uMap()[id]; if (!u) return;
+  const list = S.tasks.filter(t => t.ids.includes(id)).sort((a, b) => (a.state === 'done') - (b.state === 'done') || (a.targetDate < b.targetDate ? -1 : 1));
+  const s = stats(list);
+  modal(u.name, `<div class="row" style="margin-bottom:14px">${ring(s.pct, s.late ? 'var(--late)' : 'var(--done)', true)}<div><div class="mut">${esc(u.designation || '')} ${u.department ? '· ' + esc(u.department) : ''}</div>
+  <div class="counts" style="font-size:14px"><span style="color:var(--done)">✓ ${s.done} completed</span><span style="color:var(--prog)">◐ ${s.prog} in progress</span><span>○ ${s.todo} not started</span><span style="color:var(--late)">⚠ ${s.late} overdue</span></div></div></div>
+  <div class="list">${list.map(itemHTML).join('') || '<div class="empty">No tasks.</div>'}</div>`, '<button class="btn" data-close>Close</button>', 'noauto');
+}
+
+/* ===================================================================== MY DESK */
+function rDesk() {
+  const el = $('#v-desk');
+  if (!S.me) { el.innerHTML = `<div class="card" style="text-align:center;padding:40px"><h2>Your personal desk</h2><p class="mut">Log in to see the tasks assigned to you, update progress and get reminders.</p><button class="btn pri" id="deskLogin">Log in</button></div>`; $('#deskLogin').onclick = loginFlow; return; }
+  const mine = S.tasks.filter(t => t.ids.includes(S.me.id));
+  const s = stats(mine);
+  const open = mine.filter(t => t.state !== 'done').sort((a, b) => ({ late: 0, prog: 1, todo: 2, hold: 3 }[a.state] - { late: 0, prog: 1, todo: 2, hold: 3 }[b.state]) || (a.targetDate < b.targetDate ? -1 : 1));
+  const done = mine.filter(t => t.state === 'done');
+  const pays = S.budget.filter(b => b.responsible === S.me.id && b.paymentStatus !== 'Paid');
+  const hr = new Date().getHours();
+  el.innerHTML = `
+  <div class="hero-desk">${ring(s.pct, '', true)}<div style="flex:1 1 260px"><div style="opacity:.8">${hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'},</div><h2>${esc(S.me.name)}</h2>
+   <div style="margin-top:8px;opacity:.9">${s.open} open · ${s.late ? `<b style="color:#FFB4A6">${s.late} overdue</b>` : 'none overdue'} · ${s.done} completed${pays.length ? ' · ' + pays.length + ' payment(s) to close' : ''}</div></div>
+   <div class="row"><button class="btn pri" id="addMine">+ Add task</button>${isMgr() ? '<button class="btn ghost" data-go="tasks">Assign to team</button>' : ''}</div></div>
+  <div class="row between" style="margin-bottom:10px"><h2>My open tasks (${open.length})</h2><span class="sm mut">Move the slider and tap Save, or tap Done when finished.</span></div>
+  <div class="grid g2" style="margin-bottom:18px">${open.map(t => `
+   <div class="task-card ${t.state}"><div class="row between" style="align-items:flex-start"><div class="t" data-task="${esc(t.id)}" style="cursor:pointer">${t.code ? `<span class="mut">${esc(t.code)}</span> ` : ''}${esc(t.title)}</div>${pill(t)}</div>
+    <div class="sm mut" style="margin-top:4px">${esc(t.activity || '')} · Target ${fmtDY(t.targetDate)} · <b style="color:${t.state === 'late' ? 'var(--late)' : 'inherit'}">${dueText(t)}</b>${t.ids.length > 1 ? ' · with ' + esc(t.ids.filter(i => i !== S.me.id).map(uName).join(', ')) : ''}</div>
+    <div class="qa">${t.status === 'Not Started' ? `<button class="btn sm" data-q="start" data-id="${esc(t.id)}">▶ Start</button>` : ''}
+     <input type="range" min="0" max="100" step="10" value="${t.progressN}" data-r="${esc(t.id)}" aria-label="Progress"><b class="sm" id="pv-${esc(t.id)}">${t.progressN}%</b>
+     <button class="btn sm line" data-q="save" data-id="${esc(t.id)}">Save</button><button class="btn sm pri" data-q="done" data-id="${esc(t.id)}">✓ Done</button></div></div>`).join('') || '<div class="empty">No open tasks. Enjoy the clear desk!</div>'}</div>
+  ${pays.length ? `<h2 style="margin-bottom:10px">My payments to close</h2><div class="list" style="margin-bottom:18px">${pays.map(b => `<div class="item ${b.late ? 'late' : 'prog'}" data-bud="${esc(b.id)}"><div><div class="t">${esc(b.head)} — ${esc(b.description)}</div><div class="m">${esc(b.vendor || '')} · ${esc(b.paymentStatus)} · due ${fmtD(b.dueDate)}</div></div><div class="r">${inr(b.balance)}<div class="mut" style="font-weight:500">balance</div></div></div>`).join('')}</div>` : ''}
+  <details class="card"><summary style="cursor:pointer;font-weight:700">Completed by me (${done.length})</summary><div class="list" style="margin-top:12px">${done.map(itemHTML).join('') || '<div class="empty">Nothing completed yet.</div>'}</div></details>`;
+  $('#addMine').onclick = () => openTask(null);
+  $$('[data-r]', el).forEach(r => r.oninput = () => { $('#pv-' + CSS.escape(r.dataset.r)).textContent = r.value + '%'; });
+  $$('[data-q]', el).forEach(b => b.onclick = () => quick(b.dataset.id, b.dataset.q, b));
+  $$('[data-bud]', el).forEach(b => b.onclick = () => openBudget(b.dataset.bud));
+}
+async function quick(id, q, btn) {
+  const p = { id };
+  if (q === 'start') { p.status = 'In Progress'; p.progress = 10; }
+  if (q === 'done') { p.status = 'Completed'; }
+  if (q === 'save') { const v = $(`[data-r="${CSS.escape(id)}"]`).value; p.progress = v; p.status = Number(v) >= 100 ? 'Completed' : 'In Progress'; }
+  busy(btn, true);
+  const r = await api('updateTask', p);
+  busy(btn, false);
+  if (!r.ok) return toast(r.error, 'err');
+  if (r.task.status === 'Completed') { confetti(); toast('Marked complete — well done!', 'ok'); } else toast('Progress saved', 'ok');
+  await load(true);
+}
+
+/* ===================================================================== TASKS */
+function filtered() {
+  const f = S.f, q = f.q.toLowerCase();
+  return S.tasks.filter(t => (!q || [t.code, t.title, t.activity, t.remarks, t.ids.map(uName).join(' ')].join(' ').toLowerCase().includes(q))
+    && (!f.person || t.ids.includes(f.person))
+    && (!f.status || (f.status === 'open' ? t.state !== 'done' : t.state === f.status))
+    && (!f.activity || t.activity === f.activity)
+    && (!f.priority || t.priority === f.priority))
+    .sort((a, b) => (a.targetDate || '9') < (b.targetDate || '9') ? -1 : (a.targetDate || '9') > (b.targetDate || '9') ? 1 : String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
+}
+function rTasks() {
+  const el = $('#v-tasks'), f = S.f;
+  const acts = [...new Set(S.tasks.map(t => t.activity).filter(Boolean))].sort();
+  el.innerHTML = `<div class="row between" style="margin-bottom:12px"><h2>All tasks</h2><div class="row">
+    ${S.me ? '<button class="btn pri" id="newTask">+ New task</button>' : ''}${isMgr() ? '<button class="btn line" id="bulkT">⇪ Bulk upload Excel</button>' : ''}</div></div>
+  <div class="toolbar">
+   <input type="search" id="fq" placeholder="Search task, person, activity…" value="${esc(f.q)}">
+   <select id="fp"><option value="">Everyone</option>${S.users.map(u => `<option value="${esc(u.id)}" ${f.person === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>
+   <select id="fs">${[['', 'All status'], ['open', 'All open'], ['late', 'Overdue'], ['prog', 'In progress'], ['todo', 'Not started'], ['hold', 'On hold'], ['done', 'Completed']].map(([v, l]) => `<option value="${v}" ${f.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+   <select id="fa"><option value="">All activities</option>${acts.map(a => `<option ${f.activity === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
+   <select id="fr"><option value="">Any priority</option>${['High', 'Medium', 'Low'].map(p => `<option ${f.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select>
+   <div class="seg" id="tv-seg">${[['table', 'Table'], ['kanban', 'Board'], ['calendar', 'Calendar']].map(([v, l]) => `<button data-tv="${v}" class="${S.tview === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+  </div><div id="tbody"></div>`;
+  const re = () => { drawTasks(); };
+  $('#fq').oninput = e => { f.q = e.target.value; re(); };
+  [['#fp', 'person'], ['#fs', 'status'], ['#fa', 'activity'], ['#fr', 'priority']].forEach(([s, k]) => $(s).onchange = e => { f[k] = e.target.value; re(); });
+  $$('#tv-seg button').forEach(b => b.onclick = () => { S.tview = b.dataset.tv; store.set('tm_tview', S.tview); rTasks(); });
+  if ($('#newTask')) $('#newTask').onclick = () => openTask(null);
+  if ($('#bulkT')) $('#bulkT').onclick = () => bulkDialog('tasks');
+  drawTasks();
+}
+function drawTasks() {
+  const list = filtered(), box = $('#tbody');
+  if (S.tview === 'kanban') return drawKanban(list, box);
+  if (S.tview === 'calendar') return drawCal(list, box);
+  box.innerHTML = list.length ? `<div class="card" style="padding:0"><div class="scroll"><table class="stack"><thead><tr><th>ID</th><th>Task</th><th>Assigned</th><th>Target</th><th>Status</th><th>Delay</th><th class="num">Budget</th></tr></thead><tbody>
+   ${list.map(t => `<tr class="click" data-task="${esc(t.id)}"><td class="nowrap"><b>${esc(t.code || '—')}</b></td><td><b>${esc(t.title)}</b><div class="sm mut">${esc(t.activity || '')}${t.priority === 'High' ? ' · <span class="warn">High</span>' : ''}</div></td>
+   <td>${avs(t.ids)} <span class="sm">${esc(t.ids.map(uName).join(', '))}</span></td><td class="nowrap">${fmtDY(t.targetDate)}<div class="sm mut">${dueText(t)}</div></td>
+   <td>${pill(t)}<div class="pbar"><i style="width:${t.progressN}%;background:var(--${t.state === 'done' ? 'done' : t.state === 'late' ? 'late' : 'prog'})"></i></div></td>
+   <td class="nowrap" style="color:${t.delay ? 'var(--late)' : 'inherit'}">${t.delay ? t.delay + ' d' : '—'}</td><td class="num">${t.budgetN ? inr(t.budgetN) : '—'}</td></tr>`).join('')}
+  </tbody></table></div></div><p class="sm mut">${list.length} task(s) shown.</p>` : '<div class="empty">No tasks match these filters.</div>';
+}
+function drawKanban(list, box) {
+  const cols = [['Not Started', 'todo'], ['In Progress', 'prog'], ['On Hold', 'hold'], ['Completed', 'done']];
+  box.innerHTML = `<div class="kanban">${cols.map(([st]) => { const l = list.filter(t => t.status === st || (!STATUSES.includes(t.status) && st === 'Not Started')); return `<div class="col" data-col="${st}"><h3><span>${st}</span><span class="mut">${l.length}</span></h3>
+    ${l.map(t => `<div class="kc ${t.state}" data-task="${esc(t.id)}" draggable="${canEdit(t) ? 'true' : 'false'}" data-drag="${esc(t.id)}"><div class="t">${t.code ? `<span class="mut">${esc(t.code)}</span> ` : ''}${esc(t.title)}</div>
+    <div class="m">${avs(t.ids)}<span style="color:${t.state === 'late' ? 'var(--late)' : 'inherit'};font-weight:700">${dueText(t)}</span></div></div>`).join('')}</div>`; }).join('')}</div>
+    <p class="sm mut">${S.me ? 'Drag your own cards between columns to change status.' : 'Log in to move your cards.'}</p>`;
+  $$('[data-drag]', box).forEach(c => c.ondragstart = e => { e.dataTransfer.setData('text/plain', c.dataset.drag); });
+  $$('.col', box).forEach(col => {
+    col.ondragover = e => { e.preventDefault(); col.classList.add('over'); };
+    col.ondragleave = () => col.classList.remove('over');
+    col.ondrop = async e => {
+      e.preventDefault(); col.classList.remove('over');
+      const id = e.dataTransfer.getData('text/plain'); const t = S.tasks.find(x => x.id === id);
+      if (!t || t.status === col.dataset.col) return;
+      const r = await api('updateTask', { id, status: col.dataset.col });
+      if (!r.ok) return toast(r.error, 'err');
+      if (col.dataset.col === 'Completed') confetti();
+      await load(true);
+    };
+  });
+}
+function drawCal(list, box) {
+  const [y, m] = S.cal.split('-').map(Number);
+  const first = new Date(y, m - 1, 1); const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));
+  const cells = []; for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(start.getDate() + i); cells.push(d); }
+  const td = today();
+  box.innerHTML = `<div class="card"><div class="row between" style="margin-bottom:12px"><button class="btn sm" id="cp">‹ Prev</button><h3 style="margin:0">${first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</h3><button class="btn sm" id="cn">Next ›</button></div>
+   <div class="cal">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="h">${d}</div>`).join('')}
+   ${cells.map(d => { const k = ymd(d); const l = list.filter(t => t.targetDate === k); return `<div class="c${d.getMonth() !== m - 1 ? ' o' : ''}${k === td ? ' td' : ''}"><b>${d.getDate()}</b>${l.map(t => `<button class="chip s-${t.state}" data-task="${esc(t.id)}" title="${esc(t.title)}">${esc(t.code || '')} ${esc(t.title)}</button>`).join('')}</div>`; }).join('')}</div>${legend}</div>`;
+  const mv = n => { const d = new Date(y, m - 1 + n, 1); S.cal = ymd(d).slice(0, 7); drawTasks(); };
+  $('#cp').onclick = () => mv(-1); $('#cn').onclick = () => mv(1);
+}
+
+/* task modal */
+function openTask(id) {
+  const t = id ? S.tasks.find(x => x.id === id) : null;
+  if (id && !t) return;
+  const edit = t ? canEdit(t) : !!S.me;
+  if (!t && !S.me) return loginFlow();
+  if (!edit) {
+    modal((t.code ? t.code + ' · ' : '') + 'Task details', `<h3 style="font-size:19px;margin-bottom:8px">${esc(t.title)}</h3><div class="row" style="margin-bottom:12px">${pill(t)}<span class="mut">${esc(t.activity || '')}</span></div>
+     <div class="fgrid" style="margin-bottom:14px"><div><div class="mut sm">Assigned to</div>${avs(t.ids)} ${esc(t.ids.map(uName).join(', '))}</div><div><div class="mut sm">Target date</div><b>${fmtDY(t.targetDate)}</b> · ${dueText(t)}</div>
+     <div><div class="mut sm">Progress</div><b>${t.progressN}%</b></div><div><div class="mut sm">Closed on</div><b>${fmtDY(t.closedDate)}</b></div>${t.budgetN ? `<div><div class="mut sm">Budget</div><b>${inr(t.budgetN)}</b></div>` : ''}<div><div class="mut sm">Priority</div><b>${esc(t.priority)}</b></div></div>
+     ${t.remarks ? `<p><span class="mut sm">Remarks</span><br>${esc(t.remarks)}</p>` : ''}<h3>Update history</h3>${timeline(t)}`,
+      `${S.me ? '' : '<span class="sm mut" style="margin-right:auto">Log in to update your own tasks.</span>'}<button class="btn" data-close>Close</button>`, 'noauto');
+    return;
+  }
+  const o = t || { code: '', activity: '', title: '', ids: [S.me.id], priority: 'Medium', startDate: today(), targetDate: addDays(today(), 2), status: 'Not Started', progressN: 0, budgetN: 0, remarks: '', closedDate: '' };
+  const acts = [...new Set(S.tasks.map(x => x.activity).filter(Boolean))];
+  const m = modal(t ? 'Edit task ' + (t.code || '') : 'New task', `<form id="tf" class="fgrid">
+   <div class="f"><label>ID / code</label><input name="code" value="${esc(o.code)}" placeholder="e.g. 3.7"></div>
+   <div class="f"><label>Activity / category</label><input name="activity" list="actl" value="${esc(o.activity)}"><datalist id="actl">${acts.map(a => `<option value="${esc(a)}">`).join('')}</datalist></div>
+   <div class="f full"><label>Task / deliverable *</label><textarea name="title" required>${esc(o.title)}</textarea></div>
+   <div class="f full"><label>Assigned to</label>${isMgr() ? `<div class="checks">${S.users.map(u => `<label><input type="checkbox" name="as" value="${esc(u.id)}" ${o.ids.includes(u.id) ? 'checked' : ''}>${esc(u.name)}</label>`).join('')}</div>` : `<div>${avs(o.ids)} ${esc(o.ids.map(uName).join(', '))}</div>`}</div>
+   <div class="f"><label>Start date</label><input type="date" name="startDate" value="${esc(o.startDate)}"></div>
+   <div class="f"><label>Target date *</label><input type="date" name="targetDate" value="${esc(o.targetDate)}" required></div>
+   <div class="f"><label>Status</label><select name="status">${STATUSES.map(s => `<option ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+   <div class="f"><label>Progress %</label><input type="number" min="0" max="100" step="5" name="progress" value="${o.progressN}"></div>
+   <div class="f"><label>Closed date</label><input type="date" name="closedDate" value="${esc(o.closedDate)}"></div>
+   <div class="f"><label>Priority</label><select name="priority">${['High', 'Medium', 'Low'].map(p => `<option ${o.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+   <div class="f"><label>Budget (₹)</label><input type="number" min="0" name="budget" value="${o.budgetN || ''}"></div>
+   ${!t && isMgr() ? '<div class="f"><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" name="addB" checked style="width:auto"> Add to budget register</label></div>' : ''}
+   <div class="f full"><label>Remarks</label><textarea name="remarks">${esc(o.remarks)}</textarea></div>
+   ${t ? '<div class="f full"><label>Update note (shown in history)</label><input name="note" placeholder="e.g. Vendor quote received"></div>' : ''}
+  </form>${t ? '<h3 style="margin-top:18px">Update history</h3>' + timeline(t) : ''}`,
+    `${t && (isMgr() || t.createdBy === S.me.id) ? '<button class="btn red" id="tdel" style="margin-right:auto">Delete</button>' : ''}<button class="btn" data-close>Cancel</button><button class="btn pri" id="tsave">Save task</button>`, 'wide');
+  $('#tsave', m).onclick = async e => {
+    const f = new FormData($('#tf', m));
+    const task = { id: t ? t.id : undefined };
+    ['code', 'activity', 'title', 'startDate', 'targetDate', 'status', 'progress', 'closedDate', 'priority', 'budget', 'remarks', 'note'].forEach(k => { if (f.has(k)) task[k] = f.get(k); });
+    if (isMgr()) task.assignees = f.getAll('as').join(',');
+    if (!String(task.title || '').trim()) return toast('Please enter the task.', 'err');
+    if (!task.targetDate) return toast('Please choose a target date.', 'err');
+    busy(e.target, true);
+    const r = await api('saveTask', { task });
+    if (r.ok && !t && f.get('addB') && num(task.budget) > 0) {
+      await api('saveBudget', { item: { head: task.activity || 'General', description: task.title, taskId: r.task.id, responsible: String(r.task.assignees).split(',')[0], planned: task.budget, dueDate: task.targetDate } });
+    }
+    busy(e.target, false);
+    if (!r.ok) return toast(r.error, 'err');
+    closeModal(); toast('Task saved' + (DEMO ? '' : ' · assignees notified by email'), 'ok');
+    if (r.task.status === 'Completed' && (!t || t.status !== 'Completed')) confetti();
+    await load(true);
+  };
+  if ($('#tdel', m)) $('#tdel', m).onclick = () => confirmBox('Delete this task permanently?', async () => { const r = await api('deleteTask', { id: t.id }); if (!r.ok) return toast(r.error, 'err'); toast('Task deleted'); await load(true); });
+}
+function timeline(t) { return t.log.length ? `<div class="timeline">${t.log.slice().reverse().map(l => `<div><b>${esc(l.by)}</b> — ${esc(l.msg)}<small>${esc(String(l.t).replace('T', ' ').slice(0, 16))}</small></div>`).join('')}</div>` : '<div class="empty">No updates yet.</div>'; }
+function confirmBox(msg, yes) {
+  const m = modal('Please confirm', `<p>${esc(msg)}</p>`, '<button class="btn" data-close>Cancel</button><button class="btn pri" id="cy">Yes, continue</button>', 'narrow');
+  $('#cy', m).onclick = async e => { busy(e.target, true); closeModal(); await yes(); };
+}
+
+/* ===================================================================== BUDGET */
+function rBudget() {
+  const el = $('#v-budget');
+  if (!S.budget.length && !S.me) { el.innerHTML = `<div class="card empty">${S.settings.publicBudget === 'yes' ? 'No budget lines yet.' : 'Budget is visible after login.'}</div>`; return; }
+  const b = bstats(S.budget);
+  const heads = {}; S.budget.forEach(x => { const k = x.head || 'General'; (heads[k] = heads[k] || []).push(x); });
+  const due = S.budget.filter(x => x.paymentStatus !== 'Paid' && x.base > 0).sort((a, c) => (a.dueDate || '9') < (c.dueDate || '9') ? -1 : 1);
+  const tmap = Object.fromEntries(S.tasks.map(t => [t.id, t]));
+  const max = Math.max(1, ...Object.values(heads).map(l => bstats(l).base));
+  el.innerHTML = `<div class="row between" style="margin-bottom:12px"><h2>Budget &amp; payments — everything in one register</h2><div class="row">${isMgr() ? '<button class="btn pri" id="newB">+ Add budget line</button><button class="btn line" id="bulkB">⇪ Bulk upload Excel</button>' : ''}</div></div>
+  <div class="kpis">
+   <div class="kpi"><span>Planned</span><b>${inr(b.planned)}</b><i>${S.budget.length} lines</i></div>
+   <div class="kpi"><span>Approved</span><b>${inr(b.approved)}</b><i>sanctioned so far</i></div>
+   <div class="kpi k-done"><span>Paid</span><b>${inr(b.paid)}</b><i>${b.pct}% of committed</i></div>
+   <div class="kpi k-late"><span>Balance to pay</span><b>${inr(b.balance)}</b><i>${b.pending} payment task(s) open</i></div>
+  </div>
+  <div class="grid g2" style="margin-bottom:14px">
+   <div class="card"><h3>By budget head</h3><div class="bars">${Object.entries(heads).map(([k, l]) => { const s = bstats(l); return `<div class="bar"><label><span>${esc(k)}</span><span>${inr(s.paid)} paid of ${inr(s.base)}</span></label><div class="track" style="width:${Math.max(8, s.base / max * 100)}%"><i style="width:${s.base ? s.paid / s.base * 100 : 0}%;background:var(--done)"></i><i style="flex:1;background:#F59F0055"></i></div></div>`; }).join('') || '<div class="empty">No lines.</div>'}</div><p class="sm mut">Bar length = committed amount; green = paid.</p></div>
+   <div class="card"><h3>Payment tasks — oldest due first</h3><div class="list">${due.map(x => `<div class="item ${x.late ? 'late' : x.paymentStatus === 'Partially Paid' ? 'prog' : 'todo'}" data-bud="${esc(x.id)}">${av(x.responsible)}<div><div class="t">${esc(x.description)}</div><div class="m">${esc(x.head)} · ${esc(x.vendor || 'vendor TBD')} · ${esc(x.paymentStatus)}</div></div><div class="r" style="color:${x.late ? 'var(--late)' : 'inherit'}">${inr(x.balance)}<div class="mut" style="font-weight:500">${x.dueDate ? (x.late ? 'was due ' : 'due ') + fmtD(x.dueDate) : 'no due date'}</div></div></div>`).join('') || '<div class="empty">All payments closed.</div>'}</div></div>
+  </div>
+  <div class="card" style="padding:0"><div class="scroll"><table class="stack"><thead><tr><th>Head</th><th>Description</th><th>Linked task</th><th>Responsible</th><th class="num">Planned</th><th class="num">Approved</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th>Due</th></tr></thead><tbody>
+  ${S.budget.map(x => `<tr class="click" data-bud="${esc(x.id)}"><td><b>${esc(x.head)}</b></td><td>${esc(x.description)}<div class="sm mut">${esc(x.vendor || '')}${x.mode ? ' · ' + esc(x.mode) : ''}${x.reference ? ' · Ref ' + esc(x.reference) : ''}</div></td>
+   <td>${tmap[x.taskId] ? esc(tmap[x.taskId].code || tmap[x.taskId].title.slice(0, 30)) : '—'}</td><td>${x.responsible ? esc(uName(x.responsible)) : '—'}</td><td class="num">${inr(x.plannedN)}</td><td class="num">${inr(x.approvedN)}</td><td class="num">${inr(x.paidN)}</td><td class="num"><b>${inr(x.balance)}</b></td>
+   <td><span class="pill ${x.paymentStatus === 'Paid' ? 'p-done' : x.late ? 'p-late' : x.paymentStatus === 'Partially Paid' ? 'p-prog' : x.paymentStatus === 'On Hold' ? 'p-hold' : 'p-todo'}">${esc(x.paymentStatus)}</span></td><td class="nowrap">${fmtD(x.dueDate)}</td></tr>`).join('')}
+  <tr><td colspan="4"><b>Total</b></td><td class="num"><b>${inr(b.planned)}</b></td><td class="num"><b>${inr(b.approved)}</b></td><td class="num"><b>${inr(b.paid)}</b></td><td class="num"><b>${inr(b.balance)}</b></td><td colspan="2"></td></tr>
+  </tbody></table></div></div>`;
+  if ($('#newB')) $('#newB').onclick = () => openBudget(null);
+  if ($('#bulkB')) $('#bulkB').onclick = () => bulkDialog('budget');
+  $$('[data-bud]', el).forEach(r => r.onclick = () => openBudget(r.dataset.bud));
+}
+function openBudget(id) {
+  const b = id ? S.budget.find(x => x.id === id) : null;
+  if (!S.me) { if (b) toast('Log in to edit budget lines.'); else loginFlow(); return; }
+  const full = isMgr(); const mine = b && b.responsible === S.me.id;
+  if (b && !full && !mine) return toast('Only Admin / Manager or the responsible person can edit this line.');
+  const o = b || { head: '', description: '', taskId: '', responsible: '', vendor: '', plannedN: '', approvedN: '', paidN: '', paymentStatus: 'Pending', mode: '', dueDate: '', paidDate: '', reference: '', remarks: '' };
+  const heads = [...new Set(S.budget.map(x => x.head).filter(Boolean))];
+  const ro = full ? '' : 'disabled';
+  const m = modal(b ? 'Edit budget line' : 'New budget line', `<form id="bf" class="fgrid">
+   <div class="f"><label>Budget head</label><input name="head" list="hl" value="${esc(o.head)}" ${ro}><datalist id="hl">${heads.map(h => `<option value="${esc(h)}">`).join('')}</datalist></div>
+   <div class="f"><label>Vendor / agency</label><input name="vendor" value="${esc(o.vendor)}"></div>
+   <div class="f full"><label>Description *</label><input name="description" value="${esc(o.description)}" ${ro}></div>
+   <div class="f"><label>Linked task</label><select name="taskId" ${ro}><option value="">— none —</option>${S.tasks.map(t => `<option value="${esc(t.id)}" ${o.taskId === t.id ? 'selected' : ''}>${esc((t.code ? t.code + ' · ' : '') + t.title.slice(0, 60))}</option>`).join('')}</select></div>
+   <div class="f"><label>Responsible</label><select name="responsible" ${ro}><option value="">—</option>${S.users.map(u => `<option value="${esc(u.id)}" ${o.responsible === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>
+   <div class="f"><label>Planned (₹)</label><input type="number" min="0" name="planned" value="${o.plannedN}" ${ro}></div>
+   <div class="f"><label>Approved (₹)</label><input type="number" min="0" name="approved" value="${o.approvedN}" ${ro}></div>
+   <div class="f"><label>Paid so far (₹)</label><input type="number" min="0" name="paid" value="${o.paidN}"></div>
+   <div class="f"><label>Payment status</label><select name="paymentStatus">${PAY.map(p => `<option ${o.paymentStatus === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+   <div class="f"><label>Payment mode</label><select name="mode">${['', 'UPI', 'NEFT/RTGS', 'Cheque', 'Cash', 'Card', 'Other'].map(p => `<option ${o.mode === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+   <div class="f"><label>Payment due date</label><input type="date" name="dueDate" value="${esc(o.dueDate)}"></div>
+   <div class="f"><label>Paid date</label><input type="date" name="paidDate" value="${esc(o.paidDate)}"></div>
+   <div class="f"><label>Invoice / UTR ref</label><input name="reference" value="${esc(o.reference)}"></div>
+   <div class="f full"><label>Remarks</label><input name="remarks" value="${esc(o.remarks)}"></div></form>
+   ${b ? `<p class="sm mut">Last updated ${esc(String(b.updatedAt).replace('T', ' ').slice(0, 16))} by ${esc(b.updatedBy || '')}</p>` : ''}`,
+    `${b && full ? '<button class="btn red" id="bdel" style="margin-right:auto">Delete</button>' : ''}<button class="btn" data-close>Cancel</button><button class="btn pri" id="bsave">Save</button>`, 'wide');
+  $('#bsave', m).onclick = async e => {
+    const f = new FormData($('#bf', m)); const item = { id: b ? b.id : undefined };
+    for (const [k, v] of f.entries()) item[k] = v;
+    if (full && !String(item.description || '').trim()) return toast('Description required', 'err');
+    busy(e.target, true); const r = await api('saveBudget', { item }); busy(e.target, false);
+    if (!r.ok) return toast(r.error, 'err');
+    closeModal(); toast('Budget line saved', 'ok'); await load(true);
+  };
+  if ($('#bdel', m)) $('#bdel', m).onclick = () => confirmBox('Delete this budget line?', async () => { const r = await api('deleteBudget', { id: b.id }); if (!r.ok) return toast(r.error, 'err'); await load(true); });
+}
+
+/* ===================================================================== REPORTS */
+const R = { preset: 'thisMonth', from: '', to: '', basis: 'targetDate', person: '', role: '', status: '', group: 'person', withBudget: true };
+function weekStart(s) { const d = parseD(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); }
+function rangeOf() {
+  const td = today(), d = parseD(td);
+  const ms = ymd(new Date(d.getFullYear(), d.getMonth(), 1)), me = ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  const lms = ymd(new Date(d.getFullYear(), d.getMonth() - 1, 1)), lme = ymd(new Date(d.getFullYear(), d.getMonth(), 0));
+  const ws = weekStart(td);
+  return ({ today: [td, td], yesterday: [addDays(td, -1), addDays(td, -1)], thisWeek: [ws, addDays(ws, 6)], lastWeek: [addDays(ws, -7), addDays(ws, -1)], thisMonth: [ms, me], lastMonth: [lms, lme], all: ['0000-00-00', '9999-12-31'], custom: [R.from || '0000-00-00', R.to || '9999-12-31'] })[R.preset];
+}
+function reportData() {
+  const [a, b] = rangeOf();
+  const dkey = t => R.basis === 'createdAt' ? String(t.createdAt).slice(0, 10) : t[R.basis];
+  const list = S.tasks.filter(t => { const k = dkey(t); return k && k >= a && k <= b; })
+    .filter(t => !R.person || t.ids.includes(R.person))
+    .filter(t => !R.role || t.ids.some(i => (uMap()[i] || {}).designation === R.role))
+    .filter(t => !R.status || (R.status === 'open' ? t.state !== 'done' : t.state === R.status))
+    .sort((x, y) => (dkey(x) < dkey(y) ? -1 : 1));
+  const keysOf = t => {
+    const k = dkey(t);
+    switch (R.group) {
+      case 'day': return [k];
+      case 'week': return ['Week of ' + weekStart(k)];
+      case 'month': return [k.slice(0, 7)];
+      case 'person': return t.ids.length ? t.ids.map(uName) : ['Unassigned'];
+      case 'role': return [...new Set(t.ids.map(i => (uMap()[i] || {}).designation || 'No role'))];
+      case 'status': return [STATE_LABEL[t.state]];
+      case 'activity': return [t.activity || 'General'];
+    }
+  };
+  const g = {}; list.forEach(t => keysOf(t).forEach(k => (g[k] = g[k] || []).push(t)));
+  const groups = Object.entries(g).sort((x, y) => x[0] < y[0] ? -1 : 1).map(([k, l]) => { const s = stats(l); const late = l.filter(t => t.delay > 0); return { k, s, avgDelay: late.length ? (late.reduce((n, t) => n + t.delay, 0) / late.length).toFixed(1) : '0' }; });
+  return { list, groups, a, b, dkey };
+}
+const GLABEL = { day: 'Day', week: 'Week', month: 'Month', person: 'Person', role: 'Role', status: 'Status', activity: 'Activity' };
+function rReports() {
+  const el = $('#v-reports');
+  const roles = [...new Set(S.users.map(u => u.designation).filter(Boolean))].sort();
+  const { list, groups, a, b } = reportData();
+  const s = stats(list);
+  el.innerHTML = `<div class="row between" style="margin-bottom:12px"><h2>Reports</h2><div class="row"><button class="btn plum" id="xl">⬇ Excel</button><button class="btn pri" id="pdf">⬇ PDF</button></div></div>
+  <div class="card" style="margin-bottom:14px"><div class="fgrid">
+   <div class="f"><label>Period</label><select id="rp">${[['today', 'Today (day-wise)'], ['yesterday', 'Yesterday'], ['thisWeek', 'This week'], ['lastWeek', 'Last week'], ['thisMonth', 'This month'], ['lastMonth', 'Last month'], ['all', 'All dates'], ['custom', 'Custom range…']].map(([v, l]) => `<option value="${v}" ${R.preset === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+   <div class="f ${R.preset === 'custom' ? '' : 'hide'}"><label>From</label><input type="date" id="rf" value="${esc(R.from)}"></div>
+   <div class="f ${R.preset === 'custom' ? '' : 'hide'}"><label>To</label><input type="date" id="rt" value="${esc(R.to)}"></div>
+   <div class="f"><label>Date based on</label><select id="rb">${[['targetDate', 'Target date'], ['closedDate', 'Closed date'], ['startDate', 'Start date'], ['createdAt', 'Created date']].map(([v, l]) => `<option value="${v}" ${R.basis === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+   <div class="f"><label>Person</label><select id="rpe"><option value="">Everyone</option>${S.users.map(u => `<option value="${esc(u.id)}" ${R.person === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>
+   <div class="f"><label>Role</label><select id="rr"><option value="">All roles</option>${roles.map(r => `<option ${R.role === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
+   <div class="f"><label>Status</label><select id="rs">${[['', 'All'], ['open', 'Open'], ['late', 'Overdue'], ['done', 'Completed'], ['prog', 'In progress'], ['todo', 'Not started']].map(([v, l]) => `<option value="${v}" ${R.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+   <div class="f"><label>Group by</label><select id="rg">${Object.entries(GLABEL).map(([v, l]) => `<option value="${v}" ${R.group === v ? 'selected' : ''}>${l}-wise</option>`).join('')}</select></div>
+   <div class="f"><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="rwb" style="width:auto" ${R.withBudget ? 'checked' : ''}> Include budget sheet</label></div>
+  </div></div>
+  <div class="kpis"><div class="kpi"><span>Tasks in period</span><b>${s.total}</b><i>${fmtDY(a === '0000-00-00' ? '' : a)} – ${fmtDY(b === '9999-12-31' ? '' : b)}</i></div><div class="kpi k-done"><span>Completed</span><b>${s.done}</b><i>${s.onTime} on time</i></div><div class="kpi k-prog"><span>In progress</span><b>${s.prog}</b></div><div class="kpi k-late"><span>Overdue</span><b>${s.late}</b></div><div class="kpi"><span>Completion</span><b>${s.pct}%</b></div></div>
+  <div class="card" style="padding:0;margin-bottom:14px"><div class="scroll"><table class="stack"><thead><tr><th>${GLABEL[R.group]}</th><th class="num">Total</th><th class="num">Completed</th><th class="num">On time</th><th class="num">In progress</th><th class="num">Not started</th><th class="num">Overdue</th><th class="num">Avg delay (d)</th><th>Completion</th></tr></thead><tbody>
+  ${groups.map(g => `<tr><td><b>${esc(R.group === 'day' ? fmtDY(g.k) : g.k)}</b></td><td class="num">${g.s.total}</td><td class="num">${g.s.done}</td><td class="num">${g.s.onTime}</td><td class="num">${g.s.prog}</td><td class="num">${g.s.todo + g.s.hold}</td><td class="num" style="color:${g.s.late ? 'var(--late)' : 'inherit'}">${g.s.late}</td><td class="num">${g.avgDelay}</td><td><div class="track" style="width:120px;display:inline-flex;vertical-align:middle"><i style="width:${g.s.pct}%;background:var(--done)"></i></div> ${g.s.pct}%</td></tr>`).join('') || '<tr><td colspan="9" class="mut">No tasks in this period. Try "All dates" or a different date basis.</td></tr>'}
+  </tbody></table></div></div>
+  <details class="card"><summary style="cursor:pointer;font-weight:700">Task detail (${list.length})</summary><div class="list" style="margin-top:12px">${list.map(itemHTML).join('')}</div></details>`;
+  const set = (id, k, ev = 'onchange') => { $(id)[ev] = e => { R[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; rReports(); }; };
+  set('#rp', 'preset'); set('#rf', 'from'); set('#rt', 'to'); set('#rb', 'basis'); set('#rpe', 'person'); set('#rr', 'role'); set('#rs', 'status'); set('#rg', 'group'); set('#rwb', 'withBudget');
+  $('#xl').onclick = exportExcel; $('#pdf').onclick = exportPDF;
+}
+function reportTitle() { const [a, b] = rangeOf(); return `${a === '0000-00-00' ? 'All dates' : fmtDY(a) + ' to ' + fmtDY(b)} · ${GLABEL[R.group]}-wise${R.person ? ' · ' + uName(R.person) : ''}${R.role ? ' · ' + R.role : ''}`; }
+const taskRow = t => ({ 'ID': t.code, 'Activity': t.activity, 'Task / Deliverable': t.title, 'Responsibility': t.ids.map(uName).join(' / '), 'Role': [...new Set(t.ids.map(i => (uMap()[i] || {}).designation || ''))].join(' / '), 'Priority': t.priority, 'Start Date': t.startDate, 'Target Date': t.targetDate, 'Closed Date': t.closedDate, 'Status': t.state === 'late' ? 'Overdue' : t.status, 'Progress %': t.progressN, 'Delay (Days)': t.delay, 'Budget (Rs)': t.budgetN, 'Remarks': t.remarks, 'Last update': (t.log[t.log.length - 1] || {}).msg || '' });
+function exportExcel() {
+  if (typeof XLSX === 'undefined') return toast('Excel library did not load. Check your internet connection.', 'err');
+  const { list, groups } = reportData();
+  const wb = XLSX.utils.book_new();
+  const head = [[S.settings.title || 'Daily Activity Report'], ['SNBP University · School of Business Management · Wakad Campus'], [reportTitle()], ['Generated ' + new Date().toLocaleString('en-IN')], []];
+  const sum = XLSX.utils.aoa_to_sheet(head.concat([[GLABEL[R.group], 'Total', 'Completed', 'On time', 'In progress', 'Not started', 'Overdue', 'Avg delay (days)', '% Complete']], groups.map(g => [g.k, g.s.total, g.s.done, g.s.onTime, g.s.prog, g.s.todo + g.s.hold, g.s.late, Number(g.avgDelay), g.s.pct / 100])));
+  sum['!cols'] = [{ wch: 34 }, ...Array(8).fill({ wch: 13 })];
+  XLSX.utils.book_append_sheet(wb, sum, 'Summary');
+  const ts = XLSX.utils.json_to_sheet(list.map(taskRow)); ts['!cols'] = [6, 30, 60, 26, 20, 9, 11, 11, 11, 12, 10, 10, 11, 40, 30].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ts, 'Tasks');
+  const by = (fn, label) => { const g = {}; list.forEach(t => fn(t).forEach(k => (g[k] = g[k] || []).push(t))); return Object.entries(g).map(([k, l]) => { const s = stats(l); return { [label]: k, Total: s.total, Completed: s.done, 'On time': s.onTime, 'In progress': s.prog, 'Not started': s.todo + s.hold, Overdue: s.late, '% Complete': s.pct + '%', 'Budget (Rs)': s.budget }; }); };
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(by(t => t.ids.length ? t.ids.map(uName) : ['Unassigned'], 'Person')), 'Person-wise');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(by(t => [...new Set(t.ids.map(i => (uMap()[i] || {}).designation || 'No role'))], 'Role')), 'Role-wise');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(by(t => [weekStart(t.targetDate || today())], 'Week starting')), 'Week-wise');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(by(t => [(t.targetDate || '').slice(0, 7)], 'Month')), 'Month-wise');
+  if (R.withBudget && S.budget.length) {
+    const tm = Object.fromEntries(S.tasks.map(t => [t.id, t]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.budget.map(b => ({ 'Budget head': b.head, 'Description': b.description, 'Linked task': (tm[b.taskId] || {}).code || '', 'Responsible': b.responsible ? uName(b.responsible) : '', 'Vendor': b.vendor, 'Planned (Rs)': b.plannedN, 'Approved (Rs)': b.approvedN, 'Paid (Rs)': b.paidN, 'Balance (Rs)': b.balance, 'Payment status': b.paymentStatus, 'Mode': b.mode, 'Due date': b.dueDate, 'Paid date': b.paidDate, 'Reference': b.reference, 'Remarks': b.remarks }))), 'Budget');
+  }
+  XLSX.writeFile(wb, `SNBP_Wakad_Report_${R.group}_${today()}.xlsx`);
+  toast('Excel report downloaded', 'ok');
+}
+function exportPDF() {
+  if (!window.jspdf) return toast('PDF library did not load. Check your internet connection.', 'err');
+  const { list, groups } = reportData();
+  const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFillColor(46, 26, 71); doc.rect(0, 0, W, 70, 'F');
+  doc.setTextColor(255); doc.setFontSize(9); doc.text('SNBP University · School of Business Management · Wakad Campus', 30, 24);
+  doc.setFontSize(17); doc.setFont(undefined, 'bold'); doc.text(S.settings.title || 'Daily Activity Report', 30, 46);
+  doc.setFont(undefined, 'normal'); doc.setFontSize(9.5); doc.text(reportTitle().replace(/₹/g, 'Rs.'), 30, 61);
+  doc.text('Generated ' + new Date().toLocaleString('en-IN'), W - 30, 61, { align: 'right' });
+  const s = stats(list);
+  doc.setTextColor(31, 24, 48); doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text(`${s.total} tasks · ${s.done} completed (${s.pct}%) · ${s.prog} in progress · ${s.late} overdue`, 30, 94);
+  doc.setFont(undefined, 'normal');
+  const sc = { 'Completed': [12, 166, 120], 'Overdue': [224, 49, 49], 'In Progress': [245, 159, 0] };
+  doc.autoTable({ startY: 106, head: [[GLABEL[R.group], 'Total', 'Completed', 'On time', 'In progress', 'Not started', 'Overdue', 'Avg delay', '% Complete']], body: groups.map(g => [R.group === 'day' ? fmtDY(g.k) : g.k, g.s.total, g.s.done, g.s.onTime, g.s.prog, g.s.todo + g.s.hold, g.s.late, g.avgDelay, g.s.pct + '%']), headStyles: { fillColor: [74, 45, 112] }, styles: { fontSize: 9 }, margin: { left: 30, right: 30 } });
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 18, head: [['ID', 'Task / Deliverable', 'Responsibility', 'Target', 'Closed', 'Status', 'Prog.', 'Delay', 'Budget (Rs)', 'Remarks']],
+    body: list.map(t => [t.code, t.title + (t.activity ? '\n' + t.activity : ''), t.ids.map(uName).join(' / '), t.targetDate, t.closedDate, t.state === 'late' ? 'Overdue' : t.status, t.progressN + '%', t.delay || '', t.budgetN ? t.budgetN.toLocaleString('en-IN') : '', String(t.remarks || '').replace(/₹/g, 'Rs.')]),
+    headStyles: { fillColor: [46, 26, 71] }, styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' }, columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 230 }, 2: { cellWidth: 100 }, 9: { cellWidth: 120 } }, margin: { left: 30, right: 30 },
+    didParseCell: d => { if (d.section === 'body' && d.column.index === 5 && sc[d.cell.raw]) { d.cell.styles.textColor = sc[d.cell.raw]; d.cell.styles.fontStyle = 'bold'; } }
+  });
+  if (R.withBudget && S.budget.length) {
+    const b = bstats(S.budget);
+    doc.autoTable({ startY: doc.lastAutoTable.finalY + 18, head: [['Budget head', 'Description', 'Responsible', 'Planned', 'Approved', 'Paid', 'Balance', 'Status', 'Due']], body: S.budget.map(x => [x.head, x.description.replace(/₹/g, 'Rs.'), x.responsible ? uName(x.responsible) : '', x.plannedN.toLocaleString('en-IN'), x.approvedN.toLocaleString('en-IN'), x.paidN.toLocaleString('en-IN'), x.balance.toLocaleString('en-IN'), x.paymentStatus, x.dueDate]).concat([['TOTAL', '', '', b.planned.toLocaleString('en-IN'), b.approved.toLocaleString('en-IN'), b.paid.toLocaleString('en-IN'), b.balance.toLocaleString('en-IN'), '', '']]), headStyles: { fillColor: [255, 107, 74] }, styles: { fontSize: 8.5 }, margin: { left: 30, right: 30 } });
+  }
+  const n = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.text(`Page ${i} of ${n} · SNBP Wakad Daily Activity Command Centre`, W / 2, doc.internal.pageSize.getHeight() - 14, { align: 'center' }); }
+  doc.save(`SNBP_Wakad_Report_${R.group}_${today()}.pdf`);
+  toast('PDF report downloaded', 'ok');
+}
+
+/* ===================================================================== ADMIN */
+function rAdmin() {
+  const el = $('#v-admin');
+  if (!isAdmin()) { el.innerHTML = ''; return; }
+  const tabs = [['users', 'People & logins'], ['bulk', 'Bulk upload'], ['settings', 'Settings & reminders'], ['log', 'Activity log']];
+  el.innerHTML = `<div class="row between" style="margin-bottom:12px"><h2>Admin</h2><div class="seg" id="aseg">${tabs.map(([v, l]) => `<button data-a="${v}" class="${S.adminTab === v ? 'on' : ''}">${l}</button>`).join('')}</div></div><div id="abody"></div>`;
+  $$('#aseg button').forEach(b => b.onclick = () => { S.adminTab = b.dataset.a; rAdmin(); });
+  const box = $('#abody');
+  if (S.adminTab === 'users') {
+    const us = S.allUsers;
+    box.innerHTML = `<div class="row between" style="margin-bottom:10px"><p class="mut" style="margin:0">Create a login for each person. They get an email with a temporary password and set their own on first login. Admin logins need an OTP every time.</p><button class="btn pri" id="nu">+ Add person</button></div>
+    <div class="card" style="padding:0"><div class="scroll"><table class="stack"><thead><tr><th>Name</th><th>Email</th><th>Role / designation</th><th>Access</th><th>Tasks</th><th>Last login</th><th>Actions</th></tr></thead><tbody>
+    ${us.map(u => { const s = stats(S.tasks.filter(t => t.ids.includes(u.id))); return `<tr style="${u.active === 'no' ? 'opacity:.5' : ''}"><td><span class="row" style="gap:8px">${av(u.id)}<b>${esc(u.name)}</b></span></td><td>${esc(u.email)}</td><td>${esc(u.designation || '')}<div class="sm mut">${esc(u.department || '')}</div></td>
+    <td><span class="pill ${u.access === 'admin' ? 'p-late' : u.access === 'manager' ? 'p-prog' : 'p-todo'}">${esc(u.access)}</span>${u.active === 'no' ? ' <span class="pill p-todo">inactive</span>' : ''}</td><td class="nowrap">${s.done}/${s.total}${s.late ? ` <span class="warn">· ${s.late} late</span>` : ''}</td><td class="sm nowrap">${esc(String(u.lastLogin || '—').replace('T', ' ').slice(0, 16))}</td>
+    <td><div class="row" style="gap:6px"><button class="btn sm" data-eu="${esc(u.id)}">Edit</button><button class="btn sm line" data-rp="${esc(u.id)}">Reset password</button>${u.id !== S.me.id ? `<button class="btn sm red" data-du="${esc(u.id)}">Delete</button>` : ''}</div></td></tr>`; }).join('')}
+    </tbody></table></div></div>`;
+    $('#nu').onclick = () => openUser(null);
+    $$('[data-eu]', box).forEach(b => b.onclick = () => openUser(b.dataset.eu));
+    $$('[data-rp]', box).forEach(b => b.onclick = () => confirmBox('Email a new temporary password to this person?', async () => { const r = await api('resetPassword', { id: b.dataset.rp }); toast(r.ok ? r.message : r.error, r.ok ? 'ok' : 'err'); }));
+    $$('[data-du]', box).forEach(b => b.onclick = () => confirmBox('Delete this login? Their tasks stay but will show as unassigned. (Tip: Edit → Inactive keeps history.)', async () => { const r = await api('deleteUser', { id: b.dataset.du }); if (!r.ok) return toast(r.error, 'err'); await load(true); }));
+  }
+  if (S.adminTab === 'bulk') {
+    box.innerHTML = `<div class="grid g3">${[['tasks', 'Tasks in bulk', 'Assign many tasks at once. Works with your Action Plan Tracker format (ID, Activity, Task, Responsibility, Target Date, Status, Budget, Remarks). Budget amounts can go straight into the budget register.'], ['users', 'People in bulk', 'Create many logins at once: Name, Email, Role/Designation, Department, Access (member/manager). Each person gets a welcome email.'], ['budget', 'Budget & payments in bulk', 'Head, Description, Task ID, Responsible, Vendor, Planned, Approved, Paid, Payment status, Due date.']].map(([k, h, d]) => `<div class="card"><h3>${h}</h3><p class="mut sm">${d}</p><div class="row"><button class="btn pri" data-bk="${k}">⇪ Upload Excel</button><button class="btn line" data-tp="${k}">⬇ Template</button></div></div>`).join('')}</div>`;
+    $$('[data-bk]', box).forEach(b => b.onclick = () => bulkDialog(b.dataset.bk));
+    $$('[data-tp]', box).forEach(b => b.onclick = () => template(b.dataset.tp));
+  }
+  if (S.adminTab === 'settings') {
+    const st = S.settings;
+    box.innerHTML = `<div class="grid g2"><div class="card"><h3>Dashboard</h3><form id="sf" class="fgrid">
+     <div class="f full"><label>Dashboard title</label><input name="title" value="${esc(st.title || '')}"></div>
+     <div class="f full"><label>Subtitle / plan period</label><input name="subtitle" value="${esc(st.subtitle || '')}"></div>
+     <div class="f"><label>Show budget publicly</label><select name="publicBudget"><option value="yes" ${st.publicBudget === 'yes' ? 'selected' : ''}>Yes — everyone sees it</option><option value="no" ${st.publicBudget !== 'yes' ? 'selected' : ''}>No — only after login</option></select></div>
+     <div class="f"><label>Daily email reminders (9 AM)</label><select name="reminderOn"><option value="yes" ${st.reminderOn === 'yes' ? 'selected' : ''}>On</option><option value="no" ${st.reminderOn !== 'yes' ? 'selected' : ''}>Off</option></select></div>
+     <div class="f"><label>Also remind before deadline</label><select name="dueSoonDays">${[['0', 'Only on/after deadline'], ['1', '1 day before'], ['2', '2 days before'], ['3', '3 days before']].map(([v, l]) => `<option value="${v}" ${String(st.dueSoonDays) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+     <div class="f"><label>Admin daily digest email</label><select name="adminDigest"><option value="yes" ${st.adminDigest === 'yes' ? 'selected' : ''}>On</option><option value="no" ${st.adminDigest !== 'yes' ? 'selected' : ''}>Off</option></select></div>
+     </form><div class="row" style="margin-top:14px"><button class="btn pri" id="ss">Save settings</button></div></div>
+     <div class="card"><h3>Reminders</h3><p class="mut">Every morning at 9 AM (IST) each person with overdue or soon-due tasks, or open payments, gets an email listing them. Reminders repeat daily until the task is marked Completed. Admins also get a team digest.</p>
+     <p class="sm">Email quota left today: <b>${esc(S.mailQuota ?? '—')}</b></p><button class="btn plum" id="sr">Send reminders now</button></div></div>`;
+    $('#ss').onclick = async e => { const f = new FormData($('#sf')); const settings = Object.fromEntries(f.entries()); busy(e.target, true); const r = await api('saveSettings', { settings }); busy(e.target, false); if (!r.ok) return toast(r.error, 'err'); toast('Settings saved', 'ok'); await load(true); };
+    $('#sr').onclick = async e => { busy(e.target, true); const r = await api('sendReminders'); busy(e.target, false); toast(r.ok ? r.message : r.error, r.ok ? 'ok' : 'err'); };
+  }
+  if (S.adminTab === 'log') {
+    box.innerHTML = `<div class="card" style="padding:0"><div class="scroll" style="max-height:70vh"><table class="stack"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr></thead><tbody>${S.log.map(l => `<tr><td class="nowrap sm">${esc(String(l.time).replace('T', ' ').slice(0, 16))}</td><td>${esc(l.user)}</td><td><span class="pill ${/fail|delete/.test(l.action) ? 'p-late' : 'p-todo'}">${esc(l.action)}</span></td><td class="sm">${esc(l.detail)}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">No activity yet.</td></tr>'}</tbody></table></div></div>`;
+  }
+}
+function openUser(id) {
+  const u = id ? S.allUsers.find(x => x.id === id) : null;
+  const o = u || { name: '', email: '', designation: '', department: 'School of Business Management', access: 'member', phone: '', active: 'yes', color: COLORS[S.allUsers.length % COLORS.length] };
+  const roles = [...new Set(S.allUsers.map(x => x.designation).filter(Boolean))];
+  const m = modal(u ? 'Edit person' : 'Add person', `<form id="uf" class="fgrid">
+   <div class="f"><label>Full name *</label><input name="name" value="${esc(o.name)}" placeholder="Dr. / Mr. / Ms. …"></div>
+   <div class="f"><label>Email (login + reminders) *</label><input type="email" name="email" value="${esc(o.email)}"></div>
+   <div class="f"><label>Role / designation</label><input name="designation" list="rl" value="${esc(o.designation)}" placeholder="e.g. Admissions Manager"><datalist id="rl">${roles.map(r => `<option value="${esc(r)}">`).join('')}</datalist></div>
+   <div class="f"><label>Department</label><input name="department" value="${esc(o.department)}"></div>
+   <div class="f"><label>Access level</label><select name="access"><option value="member" ${o.access === 'member' ? 'selected' : ''}>Member — own tasks</option><option value="manager" ${o.access === 'manager' ? 'selected' : ''}>Manager — assign tasks, budget</option><option value="admin" ${o.access === 'admin' ? 'selected' : ''}>Admin — everything (OTP login)</option></select></div>
+   <div class="f"><label>Mobile</label><input name="phone" value="${esc(o.phone || '')}"></div>
+   <div class="f"><label>Colour</label><input type="color" name="color" value="${esc(o.color || '#7C3AED')}" style="height:44px;padding:4px"></div>
+   <div class="f"><label>Status</label><select name="active"><option value="yes" ${o.active !== 'no' ? 'selected' : ''}>Active</option><option value="no" ${o.active === 'no' ? 'selected' : ''}>Inactive</option></select></div>
+  </form>${u ? '' : '<p class="sm mut">A temporary password is emailed to this person. They will be asked to change it on first login.</p>'}`,
+    `<button class="btn" data-close>Cancel</button><button class="btn pri" id="us">${u ? 'Save' : 'Create login'}</button>`);
+  $('#us', m).onclick = async e => {
+    const user = Object.fromEntries(new FormData($('#uf', m)).entries()); if (u) user.id = u.id;
+    busy(e.target, true); const r = await api('saveUser', { user }); busy(e.target, false);
+    if (!r.ok) return toast(r.error, 'err');
+    closeModal(); toast(r.message || (u ? 'Saved' : 'Login created and emailed to ' + user.email), 'ok'); await load(true);
+  };
+}
+
+/* ===================================================================== BULK UPLOAD */
+const COLS = {
+  tasks: [['email', /e-?mail/], ['assignee', /respons|assign|owner|person|who|allocated/], ['code', /^(id|code|task id|sr\.?|sr\.? ?no\.?|s\.? ?no\.?|sl\.? ?no\.?|#)$/], ['activity', /activity|category|module|area/], ['title', /task|deliverable|title|description|work/], ['startDate', /start/], ['targetDate', /target|deadline|due|end date/], ['closedDate', /closed|completed on|completion date|actual date/], ['status', /status/], ['priority', /priority/], ['progress', /progress/], ['budget', /budget|amount|cost/], ['remarks', /remark|note|comment/]],
+  users: [['email', /e-?mail/], ['name', /name/], ['designation', /role|designation|post|position/], ['department', /dept|department|school/], ['access', /access|level|permission/], ['phone', /phone|mobile|contact/]],
+  budget: [['taskCode', /task/], ['responsible', /respons|owner|person/], ['head', /head|category|activity/], ['description', /desc|item|particular/], ['vendor', /vendor|agency|supplier|party/], ['approved', /approv|sanction/], ['paid', /^paid|spent|actual|paid amount/], ['planned', /plan|budget|estimate|amount/], ['paymentStatus', /status/], ['mode', /mode/], ['paidDate', /paid date|payment date/], ['dueDate', /due/], ['reference', /ref|invoice|utr|bill/], ['remarks', /remark|note/]]
+};
+function normName(s) { return String(s || '').toLowerCase().replace(/\b(dr|mr|mrs|ms|prof|shri|smt)\b\.?/g, ' ').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function matchUser(raw) {
+  const n = normName(raw); if (!n) return null;
+  const us = S.allUsers.length ? S.allUsers : S.users;
+  const em = us.find(u => (u.email || '').toLowerCase() === String(raw).trim().toLowerCase()); if (em) return em.id;
+  const exact = us.find(u => normName(u.name) === n); if (exact) return exact.id;
+  const tk = n.split(' ');
+  const byFirst = us.filter(u => normName(u.name).split(' ')[0] === tk[0]);
+  if (byFirst.length === 1) return byFirst[0].id;
+  const byLast = us.filter(u => { const t = normName(u.name).split(' '); return t[t.length - 1] === tk[tk.length - 1]; });
+  if (byLast.length === 1) return byLast[0].id;
+  return null;
+}
+function toYMD(v) {
+  if (v === '' || v == null) return '';
+  if (v instanceof Date) return isNaN(v) ? '' : ymd(new Date(v.getTime() + 12 * 3600e3));
+  if (typeof v === 'number' && v > 20000 && v < 80000) { const o = XLSX.SSF.parse_date_code(v); return o.y + '-' + pad(o.m) + '-' + pad(o.d); }
+  const s = String(v).trim(); let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return m[1] + '-' + pad(m[2]) + '-' + pad(m[3]);
+  if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/))) { let y = +m[3]; if (y < 100) y += 2000; return y + '-' + pad(m[2]) + '-' + pad(m[1]); }
+  const d = new Date(s); return isNaN(d) ? '' : ymd(d);
+}
+function normStatus(s) { s = String(s || '').toLowerCase(); return /complet|done|closed|finish/.test(s) ? 'Completed' : /progress|ongoing|started|wip/.test(s) && !/not/.test(s) ? 'In Progress' : /hold/.test(s) ? 'On Hold' : 'Not Started'; }
+function normPay(s) { s = String(s || '').toLowerCase(); return /partial/.test(s) ? 'Partially Paid' : /paid|done|complet/.test(s) ? 'Paid' : /hold/.test(s) ? 'On Hold' : 'Pending'; }
+async function parseFile(file, kind) {
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+  let best = null;
+  for (const name of wb.SheetNames) {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' });
+    for (let i = 0; i < Math.min(25, aoa.length); i++) {
+      const map = {}; const used = new Set();
+      aoa[i].forEach((h, j) => { if (typeof h !== 'string') return; const hs = h.trim().toLowerCase(); if (!hs) return; const hit = COLS[kind].find(([k, re]) => !used.has(k) && re.test(hs)); if (hit) { map[hit[0]] = j; used.add(hit[0]); } });
+      const need = kind === 'tasks' ? ('title' in map || 'activity' in map) && ('targetDate' in map || 'assignee' in map || 'email' in map) : kind === 'users' ? 'email' in map && 'name' in map : ('description' in map || 'head' in map) && used.size >= 3;
+      if (need && (!best || used.size > best.score)) best = { score: used.size, sheet: name, rows: aoa.slice(i + 1).map(r => { const o = {}; for (const k in map) o[k] = r[map[k]]; return o; }) };
+    }
+  }
+  return best;
+}
+function template(kind) {
+  if (typeof XLSX === 'undefined') return toast('Excel library did not load.', 'err');
+  const T = {
+    tasks: [['ID', 'Activity', 'Task / Deliverable (Detailed)', 'Responsibility', 'Assignee Email (optional)', 'Start Date', 'Target Date', 'Status', 'Priority', 'Budget (₹)', 'Remarks'], ['1.1', 'Programme Flyer', 'Design flyer covering BBA, BCA, MBA, MCA', 'Mr. Mahesh / Dr. Atul Kathole', '', today(), addDays(today(), 2), 'Not Started', 'High', '', 'Soft copy + print'], ['2.2', 'Digital Marketing', 'Paid promotion – Class XII, 25 km radius', 'Dr. Atul Kathole', '', today(), addDays(today(), 3), 'Not Started', 'Medium', 5000, '']],
+    users: [['Name', 'Email', 'Role / Designation', 'Department', 'Access (member/manager)', 'Mobile'], ['Mr. Mahesh Karad', 'mahesh@example.com', 'Admissions Manager', 'School of Business Management', 'member', '']],
+    budget: [['Budget Head', 'Description', 'Task ID', 'Responsible', 'Vendor / Agency', 'Planned (₹)', 'Approved (₹)', 'Paid (₹)', 'Payment Status', 'Payment Mode', 'Due Date', 'Paid Date', 'Invoice / Ref', 'Remarks'], ['Outreach', '100 branded promotional articles', '3.4', 'Mr. Mahesh', 'Local vendor', 20000, 20000, 0, 'Pending', '', addDays(today(), 3), '', '', '']]
+  }[kind];
+  const ws = XLSX.utils.aoa_to_sheet(T); ws['!cols'] = T[0].map(h => ({ wch: Math.max(14, h.length + 4) }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, kind === 'tasks' ? 'Action Plan Tracker' : kind === 'users' ? 'People' : 'Budget');
+  XLSX.writeFile(wb, `Template_${kind}.xlsx`);
+}
+function bulkDialog(kind) {
+  const label = { tasks: 'tasks', users: 'people', budget: 'budget lines' }[kind];
+  const m = modal('Bulk upload ' + label, `<div class="drop" id="drop"><p style="margin-top:0"><b>Drop an Excel / CSV file here</b> or choose one.</p><input type="file" id="bf" accept=".xlsx,.xls,.csv" style="max-width:320px;margin:auto"><p class="sm mut" style="margin-bottom:0">The header row is found automatically — your existing tracker sheet works as it is.</p></div>
+   <p class="sm"><button class="btn sm line" id="tpl">⬇ Download template</button></p><div id="prev"></div>`, '<button class="btn" data-close>Cancel</button><button class="btn pri hide" id="imp">Import</button>', 'wide noauto');
+  $('#tpl', m).onclick = () => template(kind);
+  const drop = $('#drop', m);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); };
+  $('#bf', m).onchange = e => e.target.files[0] && handle(e.target.files[0]);
+  let rows = [], nameMap = {};
+  async function handle(file) {
+    if (typeof XLSX === 'undefined') return toast('Excel library did not load.', 'err');
+    let p; try { p = await parseFile(file, kind); } catch (e) { return toast('Could not read this file.', 'err'); }
+    if (!p) return toast('Could not find a header row. Use the template column names.', 'err');
+    if (kind === 'tasks') {
+      rows = p.rows.filter(r => String(r.title || r.activity || '').trim() && (String(r.assignee || r.email || '').trim() || r.targetDate !== '' && r.targetDate != null))
+        .map(r => {
+          const names = String(r.email || r.assignee || '').split(/\s*(?:\/|,|;|&|\band\b)\s*/i).map(s => s.trim()).filter(Boolean);
+          return { code: String(r.code ?? '').trim(), activity: String(r.activity || '').trim(), title: String(r.title || '').trim() || String(r.activity || '').trim(), names, startDate: toYMD(r.startDate), targetDate: toYMD(r.targetDate), closedDate: toYMD(r.closedDate), status: normStatus(r.status), priority: /high/i.test(r.priority) ? 'High' : /low/i.test(r.priority) ? 'Low' : 'Medium', progress: num(r.progress), budget: num(r.budget), remarks: String(r.remarks || '').trim() };
+        });
+      const un = [...new Set(rows.flatMap(r => r.names))];
+      nameMap = Object.fromEntries(un.map(n => [n, matchUser(n) || '']));
+    } else if (kind === 'users') {
+      rows = p.rows.filter(r => String(r.email || '').includes('@')).map(r => ({ name: String(r.name || '').trim(), email: String(r.email).trim().toLowerCase(), designation: String(r.designation || '').trim(), department: String(r.department || '').trim(), access: /manag/i.test(r.access) ? 'manager' : 'member', phone: String(r.phone || '').trim() }));
+    } else {
+      rows = p.rows.filter(r => String(r.description || r.head || '').trim()).map(r => {
+        const tk = S.tasks.find(t => String(t.code) === String(r.taskCode ?? '').trim());
+        return { head: String(r.head || '').trim(), description: String(r.description || r.head || '').trim(), taskId: tk ? tk.id : '', responsible: matchUser(String(r.responsible || '').split('/')[0]) || (tk ? tk.ids[0] : '') || '', vendor: String(r.vendor || ''), planned: num(r.planned), approved: num(r.approved), paid: num(r.paid), paymentStatus: normPay(r.paymentStatus), mode: String(r.mode || ''), dueDate: toYMD(r.dueDate), paidDate: toYMD(r.paidDate), reference: String(r.reference || ''), remarks: String(r.remarks || '') };
+      });
+    }
+    draw(p.sheet, file.name);
+  }
+  function draw(sheet, fname) {
+    const us = S.allUsers.length ? S.allUsers : S.users;
+    let html = `<p><b>${rows.length}</b> ${label} found in sheet “${esc(sheet)}” of ${esc(fname)}.</p>`;
+    if (kind === 'tasks') {
+      const names = Object.keys(nameMap);
+      if (names.length) html += `<div class="card" style="margin-bottom:12px"><h3>Match names to logins</h3><p class="sm mut">Names in the Responsibility column are matched to people automatically. Fix any that are wrong${isAdmin() ? ' (add missing people under Admin → People first)' : ''}.</p><div class="fgrid">${names.map(n => `<div class="f"><label>${esc(n)} ${nameMap[n] ? '' : '<span class="warn">· not matched</span>'}</label><select data-nm="${esc(n)}"><option value="">— skip —</option>${us.map(u => `<option value="${esc(u.id)}" ${nameMap[n] === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>`).join('')}</div></div>`;
+      const hasB = rows.some(r => r.budget > 0);
+      html += `<div class="checks" style="margin-bottom:10px">${hasB ? '<label><input type="checkbox" id="mkB" checked> Add Budget column amounts to the budget register</label>' : ''}<label><input type="checkbox" id="ntf" checked> Email each person their new tasks</label></div>`;
+      html += `<div class="scroll" style="max-height:44vh"><table><thead><tr><th>ID</th><th>Task</th><th>Responsibility</th><th>Target</th><th>Status</th><th class="num">Budget</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.code)}</td><td><b>${esc(r.title)}</b><div class="sm mut">${esc(r.activity)}</div></td><td>${esc(r.names.join(' / '))}</td><td class="nowrap ${r.targetDate ? '' : 'warn'}">${r.targetDate ? fmtDY(r.targetDate) : 'missing'}</td><td>${esc(r.status)}</td><td class="num">${r.budget ? inr(r.budget) : ''}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (kind === 'users') {
+      html += `<div class="scroll" style="max-height:50vh"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Access</th><th>Check</th></tr></thead><tbody>${rows.map(r => { const dup = us.some(u => (u.email || '').toLowerCase() === r.email); return `<tr><td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${esc(r.designation)}</td><td>${esc(r.access)}</td><td class="${dup ? 'warn' : ''}">${dup ? 'exists — skipped' : 'new'}</td></tr>`; }).join('')}</tbody></table></div>`;
+    } else {
+      html += `<div class="scroll" style="max-height:50vh"><table><thead><tr><th>Head</th><th>Description</th><th>Task</th><th>Responsible</th><th class="num">Planned</th><th class="num">Paid</th><th>Status</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.head)}</td><td>${esc(r.description)}</td><td>${r.taskId ? '✓' : '—'}</td><td>${esc(r.responsible ? uName(r.responsible) : '—')}</td><td class="num">${inr(r.planned)}</td><td class="num">${inr(r.paid)}</td><td>${esc(r.paymentStatus)}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    $('#prev', m).innerHTML = html;
+    $$('[data-nm]', m).forEach(s => s.onchange = () => { nameMap[s.dataset.nm] = s.value; });
+    $('#imp', m).classList.toggle('hide', !rows.length);
+    $('#imp', m).textContent = `Import ${rows.length} ${label}`;
+  }
+  $('#imp', m).onclick = async e => {
+    let r;
+    busy(e.target, true);
+    if (kind === 'tasks') {
+      const tasks = rows.map(x => ({ code: x.code, activity: x.activity, title: x.title, assignees: [...new Set(x.names.map(n => nameMap[n]).filter(Boolean))].join(','), startDate: x.startDate, targetDate: x.targetDate, closedDate: x.closedDate, status: x.status, priority: x.priority, progress: x.progress, budget: x.budget, remarks: x.remarks + (x.names.some(n => !nameMap[n]) ? ' [Unmatched: ' + x.names.filter(n => !nameMap[n]).join(', ') + ']' : '') }));
+      const budget = $('#mkB', m) && $('#mkB', m).checked ? rows.map((x, i) => x.budget > 0 ? { taskIndex: i, head: x.activity || 'General', description: x.title, responsible: tasks[i].assignees.split(',')[0] || '', planned: x.budget, dueDate: x.targetDate, remarks: x.remarks } : null).filter(Boolean) : [];
+      r = await api('bulkTasks', { tasks, budget, notify: $('#ntf', m).checked });
+      if (r.ok) toast(`${r.count} tasks imported${r.budgetCount ? ' · ' + r.budgetCount + ' budget lines' : ''}`, 'ok');
+    } else if (kind === 'users') { r = await api('bulkUsers', { users: rows }); if (r.ok) toast(r.count + ' logins created and emailed', 'ok'); }
+    else { r = await api('bulkBudget', { items: rows }); if (r.ok) toast(r.count + ' budget lines imported', 'ok'); }
+    busy(e.target, false);
+    if (!r.ok) return toast(r.error, 'err');
+    closeModal(); await load(true);
+  };
+}
+
+/* ===================================================================== AUTH */
+function loginFlow() {
+  const m = modal('Log in', `<form id="lf"><div class="f" style="margin-bottom:12px"><label>Email</label><input type="email" name="email" autocomplete="username" required></div>
+   <div class="f" style="margin-bottom:6px"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div>
+   <p class="sm"><a href="#" id="fg">Forgot password?</a></p><button class="btn pri" style="width:100%" id="lb">Log in</button></form>
+   <p class="sm mut" style="margin-bottom:0">Admin accounts receive a 6-digit code (OTP) by email to finish login.</p>`, '', 'narrow');
+  $('#fg', m).onclick = e => { e.preventDefault(); forgotFlow(); };
+  $('#lf', m).onsubmit = async e => {
+    e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+    busy($('#lb', m), true); const r = await api('login', f); busy($('#lb', m), false);
+    if (!r.ok) return toast(r.error, 'err');
+    if (r.otp) return otpFlow(f.email, r);
+    afterLogin(r);
+  };
+}
+function otpFlow(email, r0) {
+  const m = modal('Admin verification', `<p>We emailed a 6-digit code to <b>${esc(r0.sentTo)}</b>.</p>${r0.demoCode ? `<p class="sm" style="background:#FFF3BF;color:#5c4400;padding:8px 10px;border-radius:8px">Demo mode — your code is <b>${esc(r0.demoCode)}</b></p>` : ''}
+  <form id="of"><input class="otp" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required><button class="btn pri" style="width:100%;margin-top:12px" id="ob">Verify &amp; enter</button></form>`, '', 'narrow');
+  $('#of', m).onsubmit = async e => {
+    e.preventDefault(); busy($('#ob', m), true);
+    const r = await api('verifyOtp', { email, code: new FormData(e.target).get('code') }); busy($('#ob', m), false);
+    if (!r.ok) return toast(r.error, 'err');
+    afterLogin(r);
+  };
+}
+function forgotFlow() {
+  const m = modal('Reset password', `<form id="ff"><div class="f"><label>Your email</label><input type="email" name="email" required></div><button class="btn pri" style="width:100%;margin-top:12px" id="fb">Send reset code</button></form><div id="f2"></div>`, '', 'narrow');
+  $('#ff', m).onsubmit = async e => {
+    e.preventDefault(); const email = new FormData(e.target).get('email'); busy($('#fb', m), true);
+    const r = await api('forgot', { email }); busy($('#fb', m), false); toast(r.message || r.error, r.ok ? 'ok' : 'err');
+    $('#f2', m).innerHTML = `<form id="rf2" style="margin-top:14px" class="fgrid"><div class="f"><label>Code from email</label><input name="code" inputmode="numeric" required></div><div class="f"><label>New password</label><input type="password" name="newPassword" minlength="6" required></div><button class="btn plum">Set new password</button></form>`;
+    $('#rf2', m).onsubmit = async ev => { ev.preventDefault(); const f = Object.fromEntries(new FormData(ev.target).entries()); const r2 = await api('resetWithCode', { email, ...f }); toast(r2.message || r2.error, r2.ok ? 'ok' : 'err'); if (r2.ok) loginFlow(); };
+  };
+}
+async function afterLogin(r) {
+  S.token = r.token; S.me = r.user; store.set('tm_token', r.token);
+  closeModal();
+  await load(true);
+  toast('Welcome, ' + r.user.name, 'ok');
+  if (r.mustChange) return changePw(true);
+  postLoginPopups();
+}
+function postLoginPopups() {
+  const mine = S.tasks.filter(t => t.ids.includes(S.me.id) && t.state !== 'done').sort((a, b) => (a.state === 'late' ? -1 : 0) - (b.state === 'late' ? -1 : 0) || (a.targetDate < b.targetDate ? -1 : 1));
+  const pays = S.budget.filter(b => b.responsible === S.me.id && b.paymentStatus !== 'Paid' && b.dueSoon);
+  const tourNext = () => { if (!store.get('tm_tour_' + S.me.id, false)) tour(); };
+  if (!mine.length && !pays.length) return tourNext();
+  const late = mine.filter(t => t.state === 'late').length;
+  const m = modal(late ? `⚠ You have ${late} overdue task${late > 1 ? 's' : ''}` : `You have ${mine.length} pending task${mine.length > 1 ? 's' : ''}`,
+    `<p class="mut" style="margin-top:0">Here is everything still open on your name. Tap ✓ when it's done — reminders stop automatically.</p>
+     <div class="list">${mine.map(t => `<div class="item ${t.state}"><div style="flex:1" data-task="${esc(t.id)}"><div class="t">${t.code ? `<span class="mut">${esc(t.code)}</span> ` : ''}${esc(t.title)}</div><div class="m">${fmtDY(t.targetDate)} · <b style="color:${t.state === 'late' ? 'var(--late)' : 'inherit'}">${dueText(t)}</b></div></div><button class="btn sm pri" data-pd="${esc(t.id)}">✓ Done</button></div>`).join('')}
+     ${pays.map(b => `<div class="item late"><div><div class="t">Payment: ${esc(b.description)}</div><div class="m">${inr(b.balance)} · due ${fmtD(b.dueDate)}</div></div></div>`).join('')}</div>`,
+    '<button class="btn" data-go="desk" data-close>Open my desk</button><button class="btn pri" data-close>Got it</button>', 'noauto', tourNext);
+  $$('[data-pd]', m).forEach(b => b.onclick = async () => { busy(b, true); const r = await api('updateTask', { id: b.dataset.pd, status: 'Completed' }); if (!r.ok) { busy(b, false); return toast(r.error, 'err'); } confetti(); b.closest('.item').remove(); load(true); });
+}
+function changePw(forced) {
+  const m = modal(forced ? 'Set your own password' : 'Change password', `${forced ? '<p>For security, please replace the temporary password you received.</p>' : ''}<form id="pf" class="fgrid"><div class="f full"><label>Current password</label><input type="password" name="oldPassword" required></div><div class="f full"><label>New password (min 6)</label><input type="password" name="newPassword" minlength="6" required></div><div class="f full"><label>Repeat new password</label><input type="password" name="again" minlength="6" required></div><button class="btn pri">Save password</button></form>`, '', 'narrow', forced ? postLoginPopups : null);
+  $('#pf', m).onsubmit = async e => {
+    e.preventDefault(); const f = Object.fromEntries(new FormData(e.target).entries());
+    if (f.newPassword !== f.again) return toast('Passwords do not match', 'err');
+    const r = await api('changePassword', f); if (!r.ok) return toast(r.error, 'err');
+    toast('Password updated', 'ok'); closeModal();
+  };
+}
+function localLogout() { S.token = null; S.me = null; S.allUsers = []; store.del('tm_token'); }
+async function logout() { await api('logout'); localLogout(); if (S.view === 'admin') S.view = 'dashboard'; await load(true); toast('Logged out'); }
+$('#loginBtn').onclick = loginFlow;
+
+/* ===================================================================== HOW-TO TOUR */
+function tour() {
+  const who = !S.me ? 'viewer' : S.me.access;
+  const steps = [
+    ['', 'Everyone sees the same board', 'The Dashboard is open to all — no login needed. Coloured chips on the deadline runway are tasks parked on their due date: green done, amber in progress, grey not started, red overdue. Tap any chip to see details.'],
+    ['', 'Your personal desk', 'After login, “My desk” shows only your tasks — overdue first. Move the progress slider and tap Save, or tap ✓ Done when finished. A pop-up lists your pending work each time you log in.'],
+    ['', 'Reminders that never forget', 'Every morning at 9 AM you get an email with overdue and due-tomorrow tasks and open payments. It repeats daily until you mark the task Completed.'],
+    ['', 'Board & calendar views', '“All tasks” has Table, Board and Calendar views with search and filters. On the Board, drag your own card to another column to change its status.'],
+    ['', 'All budget in one place', 'Budget & payments lists every planned, approved and paid amount with the balance and due date. The person responsible can record payments; nothing gets missed.'],
+    ['', 'Reports in one click', 'Reports → choose a day, week, month or custom range, filter by person or role, group it, then download Excel or PDF.'],
+    ...(who === 'admin' || who === 'manager' ? [['', 'Admin & manager tools', (who === 'admin' ? 'Admin → People: create logins (each gets an email). Admin login is protected by a one-time code. ' : '') + 'Use “+ New task” to assign work, or “Bulk upload Excel” to assign a whole action plan at once — your existing tracker sheet works as it is.']] : []),
+    ['', 'TV mode for the office', 'Tap “▶ TV mode” on a big screen. It cycles through the key numbers, runway, team and overdue list every 12 seconds and refreshes itself.']
+  ];
+  const m = modal('How to use the Command Centre', `<div class="tour" id="tr">${steps.map(s => `<div><div class="ill">${steps.indexOf(s) + 1}<span style="font-size:18px;opacity:.6;align-self:end;margin-bottom:30px">/${steps.length}</span></div><h3 style="font-size:19px;margin-bottom:6px">${esc(s[1])}</h3><p style="margin:0">${esc(s[2])}</p></div>`).join('')}</div><div class="dots" id="td">${steps.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>`,
+    `${S.me ? '<label class="sm" style="display:flex;gap:6px;align-items:center;margin-right:auto"><input type="checkbox" id="tno" style="width:auto"> Don’t show again</label>' : ''}<button class="btn" id="tp">‹ Back</button><button class="btn pri" id="tn">Next ›</button>`, 'noauto',
+    () => { if (S.me && $('#tno') && $('#tno').checked) store.set('tm_tour_' + S.me.id, true); });
+  const tr = $('#tr', m); let i = 0;
+  const goI = n => { i = Math.max(0, Math.min(steps.length - 1, n)); tr.scrollTo({ left: tr.clientWidth * i, behavior: 'smooth' }); upd(); };
+  const upd = () => { $$('#td i', m).forEach((d, k) => d.classList.toggle('on', k === i)); $('#tn', m).textContent = i === steps.length - 1 ? 'Start using it' : 'Next ›'; };
+  tr.onscroll = () => { const n = Math.round(tr.scrollLeft / tr.clientWidth); if (n !== i) { i = n; upd(); } };
+  $('#tp', m).onclick = () => goI(i - 1);
+  $('#tn', m).onclick = () => { if (i === steps.length - 1) { if (S.me && $('#tno', m)) $('#tno', m).checked = true; closeModal(); } else goI(i + 1); };
+  m.addEventListener('keydown', e => { if (e.key === 'ArrowRight') goI(i + 1); if (e.key === 'ArrowLeft') goI(i - 1); });
+}
+$('#helpBtn').onclick = tour;
+
+/* ===================================================================== TV MODE */
+let tvTimer = null, tvI = 0;
+function tvSlides() {
+  const s = stats(S.tasks), b = bstats(S.budget);
+  const late = S.tasks.filter(t => t.state === 'late'), soon = S.tasks.filter(t => t.state !== 'done' && t.state !== 'late' && t.dueIn !== null && t.dueIn <= 2);
+  return [
+    `<h1>${esc(S.settings.title || '')} — ${s.pct}% complete</h1><div class="kpis"><div class="kpi"><span>Total</span><b>${s.total}</b></div><div class="kpi"><span>Completed</span><b>${s.done}</b></div><div class="kpi"><span>In progress</span><b>${s.prog}</b></div><div class="kpi"><span>Overdue</span><b style="color:#FF8787">${s.late}</b></div><div class="kpi"><span>Due today</span><b>${s.dueToday}</b></div>${S.budget.length ? `<div class="kpi"><span>Budget paid</span><b>${inr(b.paid)}</b><i>of ${inr(b.base)}</i></div>` : ''}</div>`,
+    `<h1>Deadline runway</h1>${runwayHTML(S.tasks, true)}`,
+    `<h1>Team board</h1>${teamHTML()}`,
+    `<h1>${late.length ? '⚠ Overdue — ' + late.length : 'Due in the next 2 days'}</h1><div class="list" style="font-size:20px">${(late.length ? late : soon).slice(0, 8).map(itemHTML).join('') || '<div class="empty">All clear!</div>'}</div>`
+  ];
+}
+function drawTV() {
+  const sl = tvSlides(); tvI = tvI % sl.length;
+  $('#tv').innerHTML = `<button class="btn ghost sm" style="position:absolute;right:20px;top:20px;z-index:2" id="tvx">Exit (Esc)</button><div class="slide on">${sl[tvI]}</div><div class="tvbar"></div>`;
+  $('#tvx').onclick = stopTV;
+}
+async function startTV() {
+  $('#tv').classList.add('on'); tvI = 0; drawTV();
+  try { await document.documentElement.requestFullscreen(); } catch (e) { }
+  tvTimer = setInterval(async () => { tvI++; if (tvI % 4 === 0) await load(true); drawTV(); }, 12000);
+}
+function stopTV() { clearInterval(tvTimer); $('#tv').classList.remove('on'); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { } }
+$('#tvBtn').onclick = startTV;
+
+/* ===================================================================== INIT */
+$('#resetDemo').onclick = () => confirmBox('Reset the demo to the original sample data?', async () => { Mock.reset(); localLogout(); await load(true); });
+(async () => {
+  S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
+  renderChrome(); render();
+  const ok = await load();
+  if (S.me && ok) postLoginPopups();
+  else if (!store.get('tm_seen_intro', false)) { store.set('tm_seen_intro', true); setTimeout(tour, 600); }
+  setInterval(() => { if (!$('#mask').classList.contains('on') && document.visibilityState === 'visible') load(true); }, 90000);
+})();
+}
+</script>
+</body>
+</html>
