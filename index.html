@@ -338,7 +338,7 @@ footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-siz
    CONFIG — paste your Google Apps Script Web App URL here.
    Leave empty to run the built-in demo (data stays in this browser).
    ===================================================================== */
-const API_URL = '';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzrhNN0K94KdXj3Lo-_VMaGHcDd-oFwA32CH8agIRyECNCwZqKHyl8GB8p9PYFZIAsp0w/exec';
 
 const DEMO = !API_URL;
 const $ = (s, r = document) => r.querySelector(s);
@@ -478,7 +478,7 @@ const Mock = (() => {
     let r;
     switch (a) {
       case 'data': r = { ok: true, today: today(), me: full(me), settings: db.settings, users: db.users.filter(u => u.active === 'yes').map(pub), tasks: db.tasks, budget: db.budget };
-        if (adm) { r.allUsers = db.users.map(full); r.log = db.log; r.mailQuota = 'demo'; } return r;
+        if (adm) { r.allUsers = db.users.map(full); r.log = db.log; r.mailQuota = 'demo'; r.wa = { instance: '', token: '', groupId: '', apiUrl: 'https://api.green-api.com', last: '' }; } return r;
       case 'logout': delete db.sessions[p.token]; save(); return { ok: true };
       case 'saveTask': {
         const t = { ...p.task }; const ex = t.id ? db.tasks.find(x => x.id === t.id) : null;
@@ -534,6 +534,9 @@ const Mock = (() => {
       case 'deleteBudget': if (!mgr) return no; db.budget = db.budget.filter(b => b.id !== p.id); save(); return { ok: true };
       case 'bulkBudget': if (!mgr) return no; db.budget.push(...(p.items || []).map(b => normBudget(b, null, me))); save(); return { ok: true, count: (p.items || []).length };
       case 'saveSettings': if (!adm) return no; Object.assign(db.settings, p.settings); save(); return { ok: true, settings: db.settings };
+      case 'waPreview': if (!adm) return no; return { ok: true, text: waText() };
+      case 'waSend': if (!adm) return no; return { ok: false, error: 'Demo: connect the WhatsApp gateway in the live version to post to the group.' };
+      case 'waGroups': if (!adm) return no; return { ok: true, groups: [{ id: '120363000000000000@g.us', name: 'SNBP Wakad Team (demo)' }] };
       case 'sendReminders': if (!adm) return no; return { ok: true, message: 'Demo: reminder emails go out every morning at 9 AM in the live version.' };
     }
     return { ok: false, error: 'Unknown action' };
@@ -608,6 +611,7 @@ function apply(r) {
   S.budget = (r.budget || []).map(deriveB);
   S.log = r.log || [];
   S.mailQuota = r.mailQuota ?? null;
+  S.wa = r.wa || S.wa || null;
   if (r.me) S.me = r.me;
   S.loadedAt = new Date();
   $('#appTitle').textContent = S.settings.title || 'Daily Activity Command Centre';
@@ -691,6 +695,22 @@ document.addEventListener('click', e => {
   const p = e.target.closest('[data-person]'); if (p) { openPerson(p.dataset.person); return; }
   const g = e.target.closest('[data-go]'); if (g) { const [v, st] = g.dataset.go.split(':'); if (st !== undefined) S.f.status = st; go(v); }
 });
+
+/* WhatsApp text (demo preview; live version builds it on the server) */
+function waText() {
+  const db = store.get('tm_demo_db_v2', null) || { users: [], tasks: [] };
+  const td = today(), yd = addDays(td, -1);
+  const nm = Object.fromEntries(db.users.map(u => [u.id, u.name.replace(/^(Dr|Mr|Mrs|Ms|Prof)\.?\s+/i, '').split(' ')[0]]));
+  const line = t => '• ' + (t.code ? t.code + ' ' : '') + (t.title.length > 55 ? t.title.slice(0, 55) + '…' : t.title) + ' – ' + t.assignees.split(',').map(i => nm[i] || '?').join('/');
+  const list = (a, m) => a.slice(0, m).map(line).join('\n') + (a.length > m ? '\n  +' + (a.length - m) + ' more' : '');
+  const T = db.tasks, doneY = T.filter(t => t.status === 'Completed' && t.closedDate === yd), pendY = T.filter(t => t.status !== 'Completed' && t.targetDate === yd), tod = T.filter(t => t.status !== 'Completed' && t.targetDate === td), over = T.filter(t => t.status !== 'Completed' && t.targetDate && t.targetDate < yd), done = T.filter(t => t.status === 'Completed').length;
+  let m = '🌅 *Good morning, Team SNBP Wakad!*\n_' + parseD(td).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' }) + '_\n\n';
+  m += '✅ *Done yesterday (' + doneY.length + ')*\n' + (doneY.length ? list(doneY, 5) : '• —') + '\n\n';
+  if (pendY.length) m += '⏳ *Missed yesterday (' + pendY.length + ')*\n' + list(pendY, 5) + '\n\n';
+  m += '📌 *Today’s focus (' + tod.length + ')*\n' + (tod.length ? list(tod, 6) : '• Nothing due today – push ahead on upcoming tasks') + '\n\n';
+  if (over.length) m += '⚠️ *Still overdue:* ' + over.length + ' task' + (over.length > 1 ? 's' : '') + '\n\n';
+  return m + '📊 Overall: *' + done + '/' + T.length + ' done (' + (T.length ? Math.round(done / T.length * 100) : 0) + '%)*\n🔗 https://snbpwakadcampus.github.io/taskmanagement-/\n\nHave a productive day! 💪';
+}
 
 /* ===================================================================== DASHBOARD */
 function runwayHTML(tasks, tv) {
@@ -1205,13 +1225,36 @@ function rAdmin() {
      <div class="f"><label>Admin daily digest email</label><select name="adminDigest"><option value="yes" ${st.adminDigest === 'yes' ? 'selected' : ''}>On</option><option value="no" ${st.adminDigest !== 'yes' ? 'selected' : ''}>Off</option></select></div>
      </form><div class="row" style="margin-top:14px"><button class="btn pri" id="ss">Save settings</button></div></div>
      <div class="card"><h3>Reminders</h3><p class="mut">Every morning at 9 AM (IST) each person with overdue or soon-due tasks, or open payments, gets an email listing them. Reminders repeat daily until the task is marked Completed. Admins also get a team digest.</p>
-     <p class="sm">Email quota left today: <b>${esc(S.mailQuota ?? '—')}</b></p><button class="btn plum" id="sr">Send reminders now</button></div></div>`;
+     <p class="sm">Email quota left today: <b>${esc(S.mailQuota ?? '—')}</b></p><button class="btn plum" id="sr">Send reminders now</button></div>
+     <div class="card" style="grid-column:1/-1"><h3>WhatsApp group · daily 8 AM update</h3>
+      <p class="mut" style="margin-top:0">Every morning at 8 AM a short update (done yesterday, missed yesterday, today’s focus, overall progress) is prepared. It is <b>posted automatically</b> to the team group when a WhatsApp gateway is connected below, and also emailed to admins with a one-tap <b>Send on WhatsApp</b> button.</p>
+      <form id="wf" class="fgrid">
+       <div class="f"><label>Daily WhatsApp update</label><select name="whatsappOn"><option value="yes" ${st.whatsappOn !== 'no' ? 'selected' : ''}>On (8 AM)</option><option value="no" ${st.whatsappOn === 'no' ? 'selected' : ''}>Off</option></select></div>
+       <div class="f"><label>Also email it to admins</label><select name="whatsappEmail"><option value="yes" ${st.whatsappEmail !== 'no' ? 'selected' : ''}>Yes</option><option value="no" ${st.whatsappEmail === 'no' ? 'selected' : ''}>Only if auto-post fails</option></select></div>
+       <div class="f"><label>Gateway API URL</label><input name="waApiUrl" value="${esc((S.wa || {}).apiUrl || 'https://api.green-api.com')}"></div>
+       <div class="f"><label>Instance ID</label><input name="waInstance" value="${esc((S.wa || {}).instance || '')}" placeholder="e.g. 7105123456"></div>
+       <div class="f"><label>API token</label><input name="waToken" type="password" value="${esc((S.wa || {}).token || '')}" placeholder="paste token"></div>
+       <div class="f"><label>Group ID <a href="#" id="wfind" class="sm">find my groups</a></label><input name="waGroupId" id="wgid" value="${esc((S.wa || {}).groupId || '')}" placeholder="1203…@g.us"></div>
+      </form>
+      <div id="wgl" class="checks" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:14px"><button class="btn pri" id="wsave">Save WhatsApp settings</button><button class="btn line" id="wprev">Preview today’s message</button><button class="btn plum" id="wsend">Send to group now</button></div>
+      <p class="sm mut">${S.wa && S.wa.last ? 'Last run: ' + esc(S.wa.last) : 'Not run yet.'} · Gateway setup: create a free instance at green-api.com, scan its QR with the registered mobile’s WhatsApp (Linked devices), make sure that number is in the team group, then paste the Instance ID and token here and tap “find my groups”.</p></div>
+    </div>`;
     $('#ss').onclick = async e => { const f = new FormData($('#sf')); const settings = Object.fromEntries(f.entries()); busy(e.target, true); const r = await api('saveSettings', { settings }); busy(e.target, false); if (!r.ok) return toast(r.error, 'err'); toast('Settings saved', 'ok'); await load(true); };
+    $('#wsave').onclick = async e => { const settings = Object.fromEntries(new FormData($('#wf')).entries()); busy(e.target, true); const r = await api('saveSettings', { settings }); busy(e.target, false); if (!r.ok) return toast(r.error, 'err'); toast('WhatsApp settings saved', 'ok'); await load(true); };
+    $('#wprev').onclick = async e => { busy(e.target, true); const r = await api('waPreview'); busy(e.target, false); if (!r.ok) return toast(r.error, 'err'); waPreview(r.text); };
+    $('#wsend').onclick = async e => { busy(e.target, true); const r = await api('waSend'); busy(e.target, false); toast(r.ok ? r.message : r.error, r.ok ? 'ok' : 'err'); await load(true); };
+    $('#wfind').onclick = async e => { e.preventDefault(); const r = await api('waGroups'); if (!r.ok) return toast(r.error, 'err'); $('#wgl').innerHTML = r.groups.length ? r.groups.map(g => `<label><input type="radio" name="wg" value="${esc(g.id)}">${esc(g.name)}</label>`).join('') : '<span class="mut">No groups found for this number.</span>'; $$('#wgl input').forEach(i => i.onchange = () => { $('#wgid').value = i.value; }); };
     $('#sr').onclick = async e => { busy(e.target, true); const r = await api('sendReminders'); busy(e.target, false); toast(r.ok ? r.message : r.error, r.ok ? 'ok' : 'err'); };
   }
   if (S.adminTab === 'log') {
     box.innerHTML = `<div class="card" style="padding:0"><div class="scroll" style="max-height:70vh"><table class="stack"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr></thead><tbody>${S.log.map(l => `<tr><td class="nowrap sm">${esc(String(l.time).replace('T', ' ').slice(0, 16))}</td><td>${esc(l.user)}</td><td><span class="pill ${/fail|delete/.test(l.action) ? 'p-late' : 'p-todo'}">${esc(l.action)}</span></td><td class="sm">${esc(l.detail)}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">No activity yet.</td></tr>'}</tbody></table></div></div>`;
   }
+}
+function waPreview(text) {
+  const m = modal('Today’s WhatsApp update', `<pre style="white-space:pre-wrap;font-family:inherit;font-size:15px;line-height:1.5;background:#E7FFDB;color:#111;border-radius:12px;padding:14px;margin:0">${esc(text)}</pre>`,
+    `<button class="btn" data-close>Close</button><button class="btn line" id="wcopy">Copy</button><a class="btn pri" style="background:#25D366;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(text)}">Open in WhatsApp</a>`, 'noauto');
+  $('#wcopy', m).onclick = async () => { try { await navigator.clipboard.writeText(text); toast('Copied — paste it in the group', 'ok'); } catch (e) { toast('Copy not allowed here — select the text instead', 'err'); } };
 }
 function openUser(id) {
   const u = id ? S.allUsers.find(x => x.id === id) : null;
