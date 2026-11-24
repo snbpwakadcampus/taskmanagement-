@@ -218,10 +218,10 @@ td.num,th.num{text-align:right;white-space:nowrap}
 /* public dashboard (clean) */
 .pace{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:clamp(18px,3vw,40px);background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(20px,3vw,36px);margin-bottom:16px;position:relative;overflow:hidden}
 .pace::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--done)}
-.pace.warn::before{background:var(--prog)}.pace.bad::before{background:var(--late)}
+.pace.m-warn::before{background:var(--prog)}.pace.m-bad::before{background:var(--late)}
 .kick{margin:0 0 6px;color:var(--mut);font-size:14px;font-weight:600}
 .pace h1{font-size:clamp(32px,5vw,52px);font-weight:800;letter-spacing:-1px}
-.pace.good .mood{color:var(--done)}.pace.warn .mood{color:#D08400}.pace.bad .mood{color:var(--late)}
+.pace.m-good .mood{color:var(--done)}.pace.m-warn .mood{color:#D08400}.pace.m-bad .mood{color:var(--late)}
 .say{font-size:17px;margin:10px 0 18px;color:var(--ink)}
 .road{display:flex;flex-direction:column;gap:10px;max-width:560px}
 .lane{display:grid;grid-template-columns:48px 1fr 44px;gap:10px;align-items:center;font-size:13px;font-weight:700;color:var(--mut)}
@@ -789,7 +789,7 @@ function planPace() {
   const time = Math.max(0, Math.min(100, Math.round((diffDays(td, a) + 1) / span * 100)));
   const work = Math.round(S.tasks.reduce((n, t) => n + t.progressN, 0) / S.tasks.length);
   const gap = work - time;
-  const mood = time <= 0 ? ['Not started yet', 'good'] : gap >= -5 ? ['On track', 'good'] : gap >= -20 ? ['A little behind', 'warn'] : ['Behind plan', 'bad'];
+  const mood = time <= 0 ? ['Not started yet', 'm-good'] : gap >= -5 ? ['On track', 'm-good'] : gap >= -20 ? ['A little behind', 'm-warn'] : ['Behind plan', 'm-bad'];
   return { a, b, span, time, work, mood, day: Math.min(span, Math.max(0, diffDays(td, a) + 1)), left: diffDays(b, td) };
 }
 function miniRow(t, right) {
