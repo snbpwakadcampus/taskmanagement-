@@ -7,10 +7,10 @@
 <link rel="icon" href="https://snbpuniversity.com/assets/golden%20logo-BS4muviq.webp">
 <title>SNBP Wakad Command Centre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 /* VOICE: a calm, confident operations room — the campus team's shared wall planner, readable at a glance.
    IDEA: the "deadline runway" — every task is a coloured chip parked on the day it is due; today is the lit lane.
@@ -390,6 +390,12 @@ const PAY = ['Pending', 'Partially Paid', 'Paid', 'On Hold'];
 const STATE_LABEL = { done: 'Completed', prog: 'In progress', late: 'Overdue', todo: 'Not started', hold: 'On hold' };
 const COLORS = ['#7C3AED', '#E8590C', '#0CA678', '#1C7ED6', '#D6336C', '#F59F00', '#5C7CFA', '#12B886', '#AE3EC9', '#FA5252'];
 
+/* Libraries load only when needed (export / import), so the dashboard opens instantly */
+const LIBS = { xlsx: ['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'], pdf: ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'] };
+const _libs = {};
+function addScript(src) { return new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = () => no(new Error('Could not load ' + src)); document.head.appendChild(sc); }); }
+function needLib(k) { if (!_libs[k]) _libs[k] = LIBS[k].reduce((p, src) => p.then(() => addScript(src)), Promise.resolve()).catch(e => { delete _libs[k]; throw e; }); return _libs[k]; }
+
 /* ===================================================================== DEMO BACKEND */
 const Mock = (() => {
   const KEY = 'tm_demo_db_v2';
@@ -640,11 +646,24 @@ function apply(r) {
   S.loadedAt = new Date();
   $('#appTitle').textContent = S.settings.title || 'Daily Activity Command Centre';
 }
+const CACHE_KEY = 'tm_cache_v1';
+function saveCache(r) { if (DEMO) return; store.set(CACHE_KEY, { at: Date.now(), settings: r.settings, users: r.users, tasks: r.tasks, budget: (r.settings || {}).publicBudget === 'yes' ? r.budget : [] }); }
+function fromCache() {
+  if (DEMO) return false;
+  const c = store.get(CACHE_KEY, null);
+  if (!c || !c.tasks) return false;
+  apply({ settings: c.settings, users: c.users, tasks: c.tasks, budget: c.budget });
+  S.loadedAt = null;
+  renderChrome(); render();
+  $('#syncInfo').textContent = 'Syncing latest…';
+  return true;
+}
 async function load(quiet) {
   let r = S.token ? await api('data') : await api('public');
   if (!r.ok && r.auth === false) { localLogout(); r = await api('public'); }
   if (!r.ok) { if (!quiet) toast(r.error || 'Could not load data', 'err'); return false; }
   apply(r);
+  saveCache(r);
   renderChrome();
   render();
   return true;
@@ -1218,8 +1237,8 @@ function rReports() {
 }
 function reportTitle() { const [a, b] = rangeOf(); return `${a === '0000-00-00' ? 'All dates' : fmtDY(a) + ' to ' + fmtDY(b)} · ${GLABEL[R.group]}-wise${R.person ? ' · ' + uName(R.person) : ''}${R.role ? ' · ' + R.role : ''}`; }
 const taskRow = t => ({ 'ID': t.code, 'Activity': t.activity, 'Task / Deliverable': t.title, 'Responsibility': t.ids.map(uName).join(' / '), 'Role': [...new Set(t.ids.map(i => (uMap()[i] || {}).designation || ''))].join(' / '), 'Priority': t.priority, 'Start Date': t.startDate, 'Target Date': t.targetDate, 'Closed Date': t.closedDate, 'Status': t.state === 'late' ? 'Overdue' : t.status, 'Progress %': t.progressN, 'Delay (Days)': t.delay, 'Budget (Rs)': t.budgetN, 'Remarks': t.remarks, 'Last update': (t.log[t.log.length - 1] || {}).msg || '' });
-function exportExcel() {
-  if (typeof XLSX === 'undefined') return toast('Excel library did not load. Check your internet connection.', 'err');
+async function exportExcel() {
+  try { toast('Preparing Excel…'); await needLib('xlsx'); } catch (e) { return toast('Excel library could not load. Check your internet connection.', 'err'); }
   const { list, groups } = reportData();
   const wb = XLSX.utils.book_new();
   const head = [[S.settings.title || 'Daily Activity Report'], ['SNBP University · School of Business Management · Wakad Campus'], [reportTitle()], ['Generated ' + new Date().toLocaleString('en-IN')], []];
@@ -1240,8 +1259,8 @@ function exportExcel() {
   XLSX.writeFile(wb, `SNBP_Wakad_Report_${R.group}_${today()}.xlsx`);
   toast('Excel report downloaded', 'ok');
 }
-function exportPDF() {
-  if (!window.jspdf) return toast('PDF library did not load. Check your internet connection.', 'err');
+async function exportPDF() {
+  try { toast('Preparing PDF…'); await needLib('pdf'); } catch (e) { return toast('PDF library could not load. Check your internet connection.', 'err'); }
   const { list, groups } = reportData();
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -1407,8 +1426,8 @@ async function parseFile(file, kind) {
   }
   return best;
 }
-function template(kind) {
-  if (typeof XLSX === 'undefined') return toast('Excel library did not load.', 'err');
+async function template(kind) {
+  try { await needLib('xlsx'); } catch (e) { return toast('Excel library could not load.', 'err'); }
   const T = {
     tasks: [['ID', 'Activity', 'Task / Deliverable (Detailed)', 'Responsibility', 'Assignee Email (optional)', 'Start Date', 'Target Date', 'Status', 'Priority', 'Budget (₹)', 'Remarks'], ['1.1', 'Programme Flyer', 'Design flyer covering BBA, BCA, MBA, MCA', 'Mr. Mahesh / Dr. Atul Kathole', '', today(), addDays(today(), 2), 'Not Started', 'High', '', 'Soft copy + print'], ['2.2', 'Digital Marketing', 'Paid promotion – Class XII, 25 km radius', 'Dr. Atul Kathole', '', today(), addDays(today(), 3), 'Not Started', 'Medium', 5000, '']],
     users: [['Name', 'Email', 'Role / Designation', 'Department', 'Access (member/manager)', 'Mobile'], ['Mr. Mahesh Karad', 'mahesh@example.com', 'Admissions Manager', 'School of Business Management', 'member', '']],
@@ -1420,6 +1439,7 @@ function template(kind) {
 }
 function bulkDialog(kind) {
   const label = { tasks: 'tasks', users: 'people', budget: 'budget lines' }[kind];
+  needLib('xlsx').catch(() => {});
   const m = modal('Bulk upload ' + label, `<div class="drop" id="drop"><p style="margin-top:0"><b>Drop an Excel / CSV file here</b> or choose one.</p><input type="file" id="bf" accept=".xlsx,.xls,.csv" style="max-width:320px;margin:auto"><p class="sm mut" style="margin-bottom:0">The header row is found automatically — your existing tracker sheet works as it is.</p></div>
    <p class="sm"><button class="btn sm line" id="tpl">⬇ Download template</button></p><div id="prev"></div>`, '<button class="btn" data-close>Cancel</button><button class="btn pri hide" id="imp">Import</button>', 'wide noauto');
   $('#tpl', m).onclick = () => template(kind);
@@ -1430,7 +1450,7 @@ function bulkDialog(kind) {
   $('#bf', m).onchange = e => e.target.files[0] && handle(e.target.files[0]);
   let rows = [], nameMap = {};
   async function handle(file) {
-    if (typeof XLSX === 'undefined') return toast('Excel library did not load.', 'err');
+    try { await needLib('xlsx'); } catch (e) { return toast('Excel library could not load.', 'err'); }
     let p; try { p = await parseFile(file, kind); } catch (e) { return toast('Could not read this file.', 'err'); }
     if (!p) return toast('Could not find a header row. Use the template column names.', 'err');
     if (kind === 'tasks') {
@@ -1609,7 +1629,7 @@ $('#tvBtn').onclick = startTV;
 $('#resetDemo').onclick = () => confirmBox('Reset the demo to the original sample data?', async () => { Mock.reset(); localLogout(); await load(true); });
 (async () => {
   S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
-  renderChrome(); render();
+  if (!fromCache()) { renderChrome(); $('#v-' + S.view).innerHTML = '<div class="empty" style="padding:60px"><span class="spin" style="border-color:#2E1A4733;border-top-color:var(--plum);vertical-align:-3px"></span>&nbsp; Loading the live dashboard…</div>'; $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.v === S.view)); $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + S.view)); }
   const ok = await load();
   if (S.me && ok) postLoginPopups();
   else if (!store.get('tm_seen_intro', false)) { store.set('tm_seen_intro', true); setTimeout(tour, 600); }
