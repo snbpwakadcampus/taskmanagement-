@@ -23,7 +23,8 @@ const CONFIG = {
   ORG: 'SNBP University · School of Business Management · Wakad Campus',
   DASHBOARD_URL: 'https://snbpwakadcampus.github.io/taskmanagement-/',
   TZ: 'Asia/Kolkata',
-  REMINDER_HOUR: 9,          // daily reminder time (IST)
+  REMINDER_HOUR: 9,          // daily email reminder time (IST)
+  WHATSAPP_HOUR: 8,          // daily WhatsApp group update time (IST)
   SESSION_HOURS: 6,          // login session length
   OTP_MINUTES: 10
 };
@@ -42,7 +43,9 @@ const DEFAULT_SETTINGS = {
   publicBudget: 'yes',
   reminderOn: 'yes',
   dueSoonDays: '1',
-  adminDigest: 'yes'
+  adminDigest: 'yes',
+  whatsappOn: 'yes',
+  whatsappEmail: 'yes'
 };
 
 const COLORS = ['#7C3AED', '#E8590C', '#0CA678', '#1C7ED6', '#D6336C', '#F59F00', '#5C7CFA', '#12B886', '#AE3EC9', '#FA5252'];
@@ -86,7 +89,11 @@ function installTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'dailyReminder') ScriptApp.deleteTrigger(t);
   });
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'whatsappDaily') ScriptApp.deleteTrigger(t);
+  });
   ScriptApp.newTrigger('dailyReminder').timeBased().everyDays(1).atHour(CONFIG.REMINDER_HOUR).inTimezone(CONFIG.TZ).create();
+  ScriptApp.newTrigger('whatsappDaily').timeBased().everyDays(1).atHour(CONFIG.WHATSAPP_HOUR).inTimezone(CONFIG.TZ).create();
 }
 
 /* ------------------------------------------------------------------ http */
@@ -110,7 +117,7 @@ function handle(p) {
       data: apiData, saveTask: apiSaveTask, updateTask: apiUpdateTask, deleteTask: apiDeleteTask, bulkTasks: apiBulkTasks,
       saveUser: apiSaveUser, deleteUser: apiDeleteUser, resetPassword: apiResetPassword, bulkUsers: apiBulkUsers,
       changePassword: apiChangePassword, saveBudget: apiSaveBudget, deleteBudget: apiDeleteBudget, bulkBudget: apiBulkBudget,
-      saveSettings: apiSaveSettings, sendReminders: apiSendReminders, logout: apiLogout
+      saveSettings: apiSaveSettings, sendReminders: apiSendReminders, waPreview: apiWaPreview, waSend: apiWaSend, waGroups: apiWaGroups, logout: apiLogout
     };
     if (!priv[p.action]) return { ok: false, error: 'Unknown action' };
     return priv[p.action](p, me);
@@ -230,7 +237,7 @@ function apiPublic() {
   res.budget = st.publicBudget === 'yes' ? rows('Budget').map(cleanBudget) : [];
   return res;
 }
-function publicSettings(st) { return { title: st.title, subtitle: st.subtitle, publicBudget: st.publicBudget, reminderOn: st.reminderOn, dueSoonDays: st.dueSoonDays, adminDigest: st.adminDigest }; }
+function publicSettings(st) { return { title: st.title, subtitle: st.subtitle, publicBudget: st.publicBudget, reminderOn: st.reminderOn, dueSoonDays: st.dueSoonDays, adminDigest: st.adminDigest, whatsappOn: st.whatsappOn, whatsappEmail: st.whatsappEmail }; }
 function cleanTask(t) { delete t._r; return t; }
 function cleanBudget(b) { delete b._r; return b; }
 
@@ -316,6 +323,8 @@ function apiData(p, me) {
     res.allUsers = all.map(function (u) { return safeUser(u, true); });
     res.log = rows('Log').slice(-300).reverse().map(function (l) { delete l._r; return l; });
     res.mailQuota = MailApp.getRemainingDailyQuota();
+    const pr = PropertiesService.getScriptProperties();
+    res.wa = { instance: pr.getProperty('waInstance') || '', token: pr.getProperty('waToken') ? '••••••••' : '', groupId: pr.getProperty('waGroupId') || '', apiUrl: pr.getProperty('waApiUrl') || 'https://api.green-api.com', last: pr.getProperty('waLast') || '' };
   }
   return res;
 }
@@ -558,6 +567,8 @@ function apiSaveSettings(p, me) {
   if (me.access !== 'admin') return { ok: false, error: 'Only Admin.' };
   const s = p.settings || {};
   Object.keys(DEFAULT_SETTINGS).forEach(function (k) { if (s[k] !== undefined) setSetting(k, clip(s[k], 200)); });
+  const pr = PropertiesService.getScriptProperties();
+  ['waInstance', 'waToken', 'waGroupId', 'waApiUrl'].forEach(function (k) { if (s[k] !== undefined && String(s[k]).indexOf('••') < 0) pr.setProperty(k, clip(s[k], 200).trim()); });
   addLog(me.name, 'settings', JSON.stringify(s).slice(0, 200));
   return { ok: true, settings: publicSettings(getSettings()) };
 }
@@ -662,4 +673,84 @@ function notifyAssigned(ids, tasks, me) {
     sendMail(u.email, tasks.length === 1 ? 'New task: ' + tasks[0].title : tasks.length + ' new tasks assigned to you',
       mailWrap('New task' + (tasks.length > 1 ? 's' : '') + ' for you', '<p>' + esc(me.name) + ' assigned you the following:</p>' + taskTable(tasks, td)));
   });
+}
+
+
+/* ------------------------------------------------------------------ WhatsApp daily group update */
+function shortName(n) { return String(n || '').replace(/^(Dr|Mr|Mrs|Ms|Prof)\.?\s+/i, '').split(' ')[0]; }
+function buildDailyUpdate() {
+  const td = todayStr(), yd = addDays(td, -1);
+  const names = {};
+  rows('Users').forEach(function (u) { names[u.id] = shortName(u.name); });
+  const tasks = rows('Tasks');
+  const who = function (t) { return t.assignees.split(',').filter(Boolean).map(function (i) { return names[i] || '?'; }).join('/'); };
+  const line = function (t) { return '• ' + (t.code ? t.code + ' ' : '') + clip(t.title, 55) + (t.title.length > 55 ? '…' : '') + ' – ' + who(t); };
+  const list = function (arr, max) { return arr.slice(0, max).map(line).join('\n') + (arr.length > max ? '\n  +' + (arr.length - max) + ' more' : ''); };
+  const doneY = tasks.filter(function (t) { return t.status === 'Completed' && t.closedDate === yd; });
+  const pendY = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate === yd; });
+  const today = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate === td; });
+  const over = tasks.filter(function (t) { return t.status !== 'Completed' && t.targetDate && t.targetDate < yd; });
+  const done = tasks.filter(function (t) { return t.status === 'Completed'; }).length;
+  const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+  const d = new Date(td + 'T12:00:00');
+  let m = '🌅 *Good morning, Team SNBP Wakad!*\n_' + Utilities.formatDate(d, CONFIG.TZ, 'EEEE, d MMM') + '_\n\n';
+  m += '✅ *Done yesterday (' + doneY.length + ')*\n' + (doneY.length ? list(doneY, 5) : '• —') + '\n\n';
+  if (pendY.length) m += '⏳ *Missed yesterday (' + pendY.length + ')*\n' + list(pendY, 5) + '\n\n';
+  m += '📌 *Today’s focus (' + today.length + ')*\n' + (today.length ? list(today, 6) : '• Nothing due today – push ahead on upcoming tasks') + '\n\n';
+  if (over.length) m += '⚠️ *Still overdue:* ' + over.length + ' task' + (over.length > 1 ? 's' : '') + '\n\n';
+  m += '📊 Overall: *' + done + '/' + tasks.length + ' done (' + pct + '%)*\n';
+  m += '🔗 ' + CONFIG.DASHBOARD_URL + '\n\nHave a productive day! 💪';
+  return m;
+}
+function waConfig() {
+  const pr = PropertiesService.getScriptProperties();
+  return { url: (pr.getProperty('waApiUrl') || 'https://api.green-api.com').replace(/\/$/, ''), id: pr.getProperty('waInstance') || '', token: pr.getProperty('waToken') || '', group: pr.getProperty('waGroupId') || '' };
+}
+function waPost(method, payload) {
+  const c = waConfig();
+  if (!c.id || !c.token) throw new Error('WhatsApp gateway not connected yet (add Instance ID and API token in Admin → Settings).');
+  const r = UrlFetchApp.fetch(c.url + '/waInstance' + c.id + '/' + method + '/' + c.token, {
+    method: payload ? 'post' : 'get', contentType: 'application/json', payload: payload ? JSON.stringify(payload) : undefined, muteHttpExceptions: true
+  });
+  if (r.getResponseCode() >= 300) throw new Error('WhatsApp gateway error ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+  return JSON.parse(r.getContentText() || '{}');
+}
+/** Runs every morning at 8 AM (trigger): posts the update to the WhatsApp group, and/or emails it to admins with a one-tap share link. */
+function whatsappDaily(force) {
+  const st = getSettings();
+  if (st.whatsappOn !== 'yes' && force !== true) return 'off';
+  const text = buildDailyUpdate();
+  const c = waConfig();
+  let status = '';
+  if (c.id && c.token && c.group) {
+    try { waPost('sendMessage', { chatId: c.group, message: text }); status = 'posted to group'; }
+    catch (e) { status = 'gateway failed: ' + e.message; }
+  } else status = 'gateway not connected';
+  if (st.whatsappEmail === 'yes' || status.indexOf('posted') < 0) {
+    const share = 'https://wa.me/?text=' + encodeURIComponent(text);
+    const body = '<p>Today\'s WhatsApp update' + (status.indexOf('posted') === 0 ? ' was posted to the group automatically.' : ' is ready — tap the button on your phone and choose the team group.') + '</p>' +
+      '<pre style="white-space:pre-wrap;background:#F4F1F8;padding:14px;border-radius:10px;font-family:inherit">' + esc(text) + '</pre>' +
+      '<p><a href="' + share + '" style="background:#25D366;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:700">Send on WhatsApp</a></p>';
+    rows('Users').filter(function (u) { return u.access === 'admin' && u.active === 'yes'; }).forEach(function (a) { sendMail(a.email, 'WhatsApp daily update · ' + todayStr(), mailWrap('Daily WhatsApp update', body)); });
+  }
+  PropertiesService.getScriptProperties().setProperty('waLast', nowStr() + ' · ' + status);
+  addLog('system', 'whatsapp', status);
+  return status;
+}
+function apiWaPreview(p, me) {
+  if (me.access !== 'admin') return { ok: false, error: 'Only Admin.' };
+  return { ok: true, text: buildDailyUpdate() };
+}
+function apiWaSend(p, me) {
+  if (me.access !== 'admin') return { ok: false, error: 'Only Admin.' };
+  const st = whatsappDaily(true);
+  return { ok: st.indexOf('posted') === 0, message: 'WhatsApp: ' + st + '. Copy also emailed to admins.', error: 'WhatsApp: ' + st };
+}
+/** Lists the WhatsApp groups the linked number belongs to, so the admin can pick the team group. */
+function apiWaGroups(p, me) {
+  if (me.access !== 'admin') return { ok: false, error: 'Only Admin.' };
+  try {
+    const list = waPost('getContacts') || [];
+    return { ok: true, groups: list.filter(function (c) { return String(c.id || '').indexOf('@g.us') > 0; }).map(function (c) { return { id: c.id, name: c.name || c.contactName || c.id }; }) };
+  } catch (e) { return { ok: false, error: String(e.message) }; }
 }
