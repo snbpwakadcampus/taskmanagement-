@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2E1A47">
+<link rel="icon" href="https://snbpuniversity.com/assets/golden%20logo-BS4muviq.webp">
 <title>SNBP Wakad Command Centre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -34,7 +35,8 @@ a{color:inherit}
 .top::after{content:"";position:absolute;right:-120px;top:-160px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,#ff6b4a55,transparent 65%);pointer-events:none}
 .top .wrap{display:flex;gap:16px;align-items:center;justify-content:space-between;padding-block:16px;flex-wrap:wrap;position:relative;z-index:1}
 .brand{display:flex;gap:12px;align-items:center}
-.mark{width:46px;height:46px;border-radius:12px;background:#fff;color:var(--plum);display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:-.5px;flex:none}
+.mark{width:52px;height:52px;border-radius:14px;background:#fff;padding:4px;overflow:hidden;color:var(--plum);display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:-.5px;flex:none}
+.mark img{width:100%;height:100%;object-fit:contain;display:block}
 .brand small{display:block;opacity:.75;font-size:12.5px}
 .brand b{font-size:clamp(18px,2.4vw,24px);font-weight:800;display:block}
 .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -269,6 +271,23 @@ td.num,th.num{text-align:right;white-space:nowrap}
 .foot-link{text-align:center;margin-top:18px}
 @media(max-width:720px){.pace{grid-template-columns:1fr}.pace-r{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px}
  .week{grid-template-columns:repeat(7,minmax(64px,1fr));overflow-x:auto}.wd{min-height:100px}}
+.donut{width:clamp(150px,18vw,200px);height:auto;margin-bottom:12px}
+.donut .dn{font-size:30px;font-weight:800;fill:var(--ink)}.donut .dd{font-size:15px;fill:var(--mut);font-weight:700}.donut .dl{font-size:10.5px;fill:var(--mut);font-weight:600}
+.pace-r{align-items:center!important;text-align:center}.pace-r .pills{justify-content:center}
+.duo{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;margin-bottom:16px}
+.duo .box{padding-bottom:14px;display:flex;flex-direction:column}.duo #burn{flex:1}
+.fig{position:relative}.fig>svg{position:absolute;inset:0}
+.ax{font-size:11px;fill:var(--mut)}
+.lg{background:none!important;font-size:12px!important;color:var(--mut);font-weight:600;display:flex;gap:6px;align-items:center;padding:0!important}
+.lg i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-left:6px}
+.streams{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.stream{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;background:color-mix(in srgb,var(--sc) 9%,var(--card));border:1px solid color-mix(in srgb,var(--sc) 25%,transparent);border-radius:14px;padding:10px 12px;cursor:pointer;min-height:96px}
+.stream:hover{border-color:var(--sc)}
+.sr{--p:0;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--sc) calc(var(--p)*1%),color-mix(in srgb,var(--sc) 18%,transparent) 0)}
+.sr b{width:30px;height:30px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:10.5px;font-weight:800}
+.sn{font-size:13px;font-weight:700;line-height:1.25}
+.stream em{font-style:normal;font-size:11.5px;color:var(--late);font-weight:700}.stream small{font-size:11.5px;color:var(--mut)}
+@media(max-width:820px){.duo{grid-template-columns:1fr}}
 footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-size:13px}
 .hide{display:none!important}
 .spin{display:inline-block;width:16px;height:16px;border:2.5px solid #fff6;border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
@@ -293,7 +312,7 @@ footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-siz
 <header class="top">
  <div class="wrap">
   <div class="brand">
-   <div class="mark">SNBP</div>
+   <div class="mark"><img src="https://snbpuniversity.com/assets/golden%20logo-BS4muviq.webp" alt="SNBP University" onerror="this.replaceWith('SNBP')"></div>
    <div><small>SNBP University · School of Business Management · Wakad Campus</small><b id="appTitle">Daily Activity Command Centre</b></div>
   </div>
   <div class="actions">
@@ -776,6 +795,42 @@ function planPace() {
 function miniRow(t, right) {
   return `<button class="mrow" data-task="${esc(t.id)}"><span class="dot s-${t.state}"></span><span class="mt"><b>${esc(t.title)}</b><small>${esc(t.ids.map(uName).join(', '))}</small></span><span class="mr ${t.state === 'late' ? 'red' : ''}">${right}</span></button>`;
 }
+function donutSVG(s) {
+  const parts = [['done', s.done], ['prog', s.prog], ['hold', s.hold], ['todo', s.todo], ['late', s.late]].filter(x => x[1]);
+  const R = 52, C = 2 * Math.PI * R; let off = 0;
+  const arcs = s.total ? parts.map(([k, v]) => { const len = v / s.total * C; const a = `<circle r="${R}" cx="64" cy="64" fill="none" stroke="var(--${k})" stroke-width="16" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 64 64)"><title>${STATE_LABEL[k]}: ${v}</title></circle>`; off += len; return a; }).join('') : '';
+  return `<svg viewBox="0 0 128 128" class="donut" role="img" aria-label="${s.done} of ${s.total} tasks completed"><circle r="${R}" cx="64" cy="64" fill="none" stroke="var(--soft)" stroke-width="16"/>${arcs}<text x="64" y="62" text-anchor="middle" class="dn">${s.done}<tspan class="dd">/${s.total}</tspan></text><text x="64" y="82" text-anchor="middle" class="dl">completed</text></svg>`;
+}
+function drawBurn(p) {
+  const el = $('#burn'); if (!el || !p) return;
+  const days = []; for (let d = p.a; d <= p.b; d = addDays(d, 1)) days.push(d);
+  const td = today(), n = S.tasks.length || 1;
+  const plan = days.map(d => S.tasks.filter(t => t.targetDate && t.targetDate <= d).length);
+  const act = days.map(d => d <= td ? S.tasks.filter(t => t.state === 'done' && (t.closedDate || td) <= d).length : null);
+  const draw = () => {
+    const W = el.clientWidth, H = el.clientHeight, L = 34, B = 26, T = 12, Rr = 12;
+    const x = i => L + (days.length > 1 ? i / (days.length - 1) : 0) * (W - L - Rr), y = v => T + (1 - v / n) * (H - T - B);
+    const path = arr => arr.map((v, i) => v == null ? '' : (i && arr[i - 1] != null ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+    const lastA = act.reduce((k, v, i) => v != null ? i : k, -1);
+    const area = lastA >= 0 ? path(act) + ` L${x(lastA).toFixed(1)} ${y(0)} L${x(0)} ${y(0)} Z` : '';
+    const ti = days.indexOf(td);
+    const step = W < 520 ? Math.ceil(days.length / 4) : Math.ceil(days.length / 8);
+    el.innerHTML = `<svg width="${W}" height="${H}">
+      ${[0, .5, 1].map(f => `<line x1="${L}" x2="${W - Rr}" y1="${y(n * f)}" y2="${y(n * f)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(n * f) + 4}" text-anchor="end" class="ax">${Math.round(n * f)}</text>`).join('')}
+      ${days.map((d, i) => i % step === 0 || i === days.length - 1 ? `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" class="ax">${parseD(d).getDate()}</text>` : '').join('')}
+      ${ti >= 0 ? `<line x1="${x(ti)}" x2="${x(ti)}" y1="${T}" y2="${H - B}" stroke="var(--acc)" stroke-dasharray="4 4"/><text x="${x(ti)}" y="${T + 2}" text-anchor="${ti > days.length * .8 ? 'end' : 'start'}" dx="${ti > days.length * .8 ? -6 : 6}" class="ax" style="fill:var(--acc);font-weight:700">today</text>` : ''}
+      <path d="${path(plan)}" fill="none" stroke="#B9AECB" stroke-width="2.5" stroke-dasharray="6 5"/>
+      ${area ? `<path d="${area}" fill="var(--done)" opacity=".14"/><path d="${path(act)}" fill="none" stroke="var(--done)" stroke-width="3"/>` : ''}
+      ${lastA >= 0 ? `<circle cx="${x(lastA)}" cy="${y(act[lastA])}" r="5" fill="var(--done)"/>` : ''}
+    </svg>`;
+  };
+  if (window._burnRO) window._burnRO.disconnect();
+  window._burnRO = new ResizeObserver(draw); window._burnRO.observe(el);
+}
+function streamsHTML() {
+  const g = {}; S.tasks.forEach(t => { const k = t.activity || 'General'; (g[k] = g[k] || []).push(t); });
+  return `<div class="streams">${Object.entries(g).map(([k, l], i) => { const s = stats(l); const c = COLORS[i % COLORS.length]; return `<button class="stream" data-act="${esc(k)}" style="--sc:${c}"><span class="sr" style="--p:${s.pct}"><b>${s.done}/${s.total}</b></span><span class="sn">${esc(k)}</span>${s.late ? `<em>${s.late} late</em>` : s.prog ? `<small>${s.prog} moving</small>` : ''}</button>`; }).join('')}</div>`;
+}
 function rDash() {
   const s = stats(S.tasks), b = bstats(S.budget), p = planPace(), td = today();
   const attn = S.tasks.filter(t => t.state !== 'done' && t.dueIn !== null && t.dueIn <= 0).sort((x, y) => x.targetDate < y.targetDate ? -1 : 1);
@@ -797,12 +852,17 @@ function rDash() {
     </div>
    </div>
    <div class="pace-r">
-    <div class="big">${s.done}<small>/${s.total}</small></div><div class="cap">tasks completed</div>
+    ${donutSVG(s)}
     <div class="pills"><span><b>${s.prog}</b> in progress</span><span class="${s.late ? 'red' : ''}"><b>${s.late}</b> overdue</span>${S.budget.length ? `<span><b>${inr(b.paid)}</b> of ${inr(b.base)} paid</span>` : ''}</div>
    </div>
   </section>
 
   <section class="week" aria-label="Next 7 days">${week.map(d => { const l = S.tasks.filter(t => t.targetDate === d && t.state !== 'done'); const dn = S.tasks.filter(t => t.targetDate === d && t.state === 'done').length; const dt = parseD(d); return `<button class="wd${d === td ? ' now' : ''}" data-day="${d}"><span>${d === td ? 'Today' : dt.toLocaleDateString('en-IN', { weekday: 'short' })}</span><b>${dt.getDate()}</b><em>${l.length ? l.length + ' due' : dn ? '✓ clear' : '—'}</em><i class="beads">${l.slice(0, 8).map(t => `<s class="s-${t.state}"></s>`).join('')}</i></button>`; }).join('')}</section>
+
+  <section class="duo">
+   <div class="box"><h3>Plan vs actual <span class="lg"><i style="background:#B9AECB"></i>planned due <i style="background:var(--done)"></i>completed</span></h3><div class="fig" id="burn" style="min-height:220px"></div></div>
+   <div class="box"><h3>Workstreams <span>${new Set(S.tasks.map(t => t.activity || 'General')).size}</span></h3>${streamsHTML()}</div>
+  </section>
 
   <section class="three">
    <div class="box ${attn.length ? 'alert' : ''}"><h3>Needs attention <span>${attn.length}</span></h3>${attn.length ? attn.slice(0, 5).map(t => miniRow(t, t.dueIn === 0 ? 'Today' : -t.dueIn + 'd late')).join('') + (attn.length > 5 ? `<button class="more" data-go="tasks:late">+${attn.length - 5} more</button>` : '') : '<p class="calm">Nothing overdue or due today.</p>'}</div>
@@ -813,6 +873,8 @@ function rDash() {
   <section class="crew"><h3>Team</h3><div class="crew-row">${ps.map(({ u, s: q }) => `<button class="mate" data-person="${esc(u.id)}">${ring(q.pct, q.late ? 'var(--late)' : 'var(--done)')}<span><b>${esc(u.name.replace(/^(Dr|Mr|Mrs|Ms|Prof)\.?\s+/i, ''))}</b><small>${q.done}/${q.total} done${q.late ? ` · <em>${q.late} late</em>` : ''}</small></span></button>`).join('')}</div></section>
   <p class="foot-link"><button class="btn line" data-go="tasks">See all ${s.total} tasks →</button></p>`;
   $$('.wd').forEach(w => w.onclick = () => openDay(w.dataset.day));
+  $$('.stream').forEach(b => b.onclick = () => { S.f = { q: '', person: '', status: '', activity: b.dataset.act, priority: '' }; go('tasks'); });
+  drawBurn(p);
 }
 function openDay(d) {
   const l = S.tasks.filter(t => t.targetDate === d);
