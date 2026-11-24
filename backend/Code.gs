@@ -161,7 +161,7 @@ function removeRow(n, id) {
 function withLock(fn) {
   const l = LockService.getScriptLock();
   l.waitLock(25000);
-  try { return fn(); } finally { l.releaseLock(); }
+  try { return fn(); } finally { bust(); l.releaseLock(); }
 }
 function newId(p) { return p + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 1296).toString(36).toUpperCase(); }
 function nowStr() { return Utilities.formatDate(new Date(), CONFIG.TZ, "yyyy-MM-dd'T'HH:mm:ss"); }
@@ -231,12 +231,16 @@ function mask(e) { const p = e.split('@'); return p[0].slice(0, 2) + '***@' + p[
 
 /* ------------------------------------------------------------------ public */
 function apiPublic() {
+  const hit = cache().get('pub_v1');
+  if (hit) { const o = JSON.parse(hit); o.today = todayStr(); return o; }
   const st = getSettings();
   const users = rows('Users').filter(function (u) { return u.active === 'yes'; }).map(function (u) { return safeUser(u, false); });
   const res = { ok: true, settings: publicSettings(st), users: users, tasks: rows('Tasks').map(cleanTask), today: todayStr() };
   res.budget = st.publicBudget === 'yes' ? rows('Budget').map(cleanBudget) : [];
+  try { const j = JSON.stringify(res); if (j.length < 95000) cache().put('pub_v1', j, 300); } catch (e) { }
   return res;
 }
+function bust() { try { cache().remove('pub_v1'); } catch (e) { } }
 function publicSettings(st) { return { title: st.title, subtitle: st.subtitle, publicBudget: st.publicBudget, reminderOn: st.reminderOn, dueSoonDays: st.dueSoonDays, adminDigest: st.adminDigest, whatsappOn: st.whatsappOn, whatsappEmail: st.whatsappEmail }; }
 function cleanTask(t) { delete t._r; return t; }
 function cleanBudget(b) { delete b._r; return b; }
@@ -567,6 +571,7 @@ function apiSaveSettings(p, me) {
   if (me.access !== 'admin') return { ok: false, error: 'Only Admin.' };
   const s = p.settings || {};
   Object.keys(DEFAULT_SETTINGS).forEach(function (k) { if (s[k] !== undefined) setSetting(k, clip(s[k], 200)); });
+  bust();
   const pr = PropertiesService.getScriptProperties();
   ['waInstance', 'waToken', 'waGroupId', 'waApiUrl'].forEach(function (k) { if (s[k] !== undefined && String(s[k]).indexOf('••') < 0) pr.setProperty(k, clip(s[k], 200).trim()); });
   addLog(me.name, 'settings', Object.keys(s).filter(function (k) { return k !== 'waToken'; }).join(', ') + (s.waToken ? ' (+ API token updated)' : ''));
@@ -821,6 +826,7 @@ function importActionPlan() {
   appendMany('Tasks', tasks);
   appendMany('Budget', budget);
   setSetting('subtitle', 'Admission & Branding Action Plan · 22–30 Nov 2026');
+  bust();
   addLog(me.name, 'bulk-tasks', tasks.length + ' tasks, ' + budget.length + ' budget lines (Action Plan Tracker)');
   Logger.log('Imported ' + tasks.length + ' tasks and ' + budget.length + ' budget lines.');
 }
