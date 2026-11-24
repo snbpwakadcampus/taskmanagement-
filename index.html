@@ -213,6 +213,62 @@ td.num,th.num{text-align:right;white-space:nowrap}
 @keyframes tvbar{from{width:0}to{width:100%}}
 @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* public dashboard (clean) */
+.pace{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:clamp(18px,3vw,40px);background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(20px,3vw,36px);margin-bottom:16px;position:relative;overflow:hidden}
+.pace::before{content:"";position:absolute;inset:0 auto 0 0;width:6px;background:var(--done)}
+.pace.warn::before{background:var(--prog)}.pace.bad::before{background:var(--late)}
+.kick{margin:0 0 6px;color:var(--mut);font-size:14px;font-weight:600}
+.pace h1{font-size:clamp(32px,5vw,52px);font-weight:800;letter-spacing:-1px}
+.pace.good .mood{color:var(--done)}.pace.warn .mood{color:#D08400}.pace.bad .mood{color:var(--late)}
+.say{font-size:17px;margin:10px 0 18px;color:var(--ink)}
+.road{display:flex;flex-direction:column;gap:10px;max-width:560px}
+.lane{display:grid;grid-template-columns:48px 1fr 44px;gap:10px;align-items:center;font-size:13px;font-weight:700;color:var(--mut)}
+.lane b{color:var(--ink);text-align:right}
+.lane .bar{height:14px;border-radius:99px;background:var(--soft);overflow:hidden}
+.lane .bar i{display:block;height:100%;border-radius:99px;background:#B9AECB}
+.lane.work .bar i{background:linear-gradient(90deg,var(--plum2),var(--acc))}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);padding-left:58px;padding-right:54px}
+.pace-r{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-left:1px solid var(--line);padding-left:clamp(18px,3vw,40px)}
+.big{font-size:clamp(56px,8vw,92px);font-weight:800;line-height:1;color:var(--plum)}
+:root[data-theme=dark] .big{color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .big{color:#fff}}
+.big small{font-size:.4em;color:var(--mut);font-weight:700}
+.cap{color:var(--mut);font-weight:600;margin:4px 0 16px}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pills span{background:var(--soft);border-radius:99px;padding:6px 12px;font-size:13.5px;white-space:nowrap}
+.pills .red{background:#E031311a;color:var(--late)}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.wd{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;min-height:118px}
+.wd:hover{border-color:var(--acc)}
+.wd span{font-size:12.5px;color:var(--mut);font-weight:700}
+.wd b{font-size:24px;font-weight:800}
+.wd em{font-style:normal;font-size:12px;color:var(--mut)}
+.wd.now{background:var(--plum);border-color:var(--plum);color:#fff}.wd.now span,.wd.now em{color:#ffffffc0}
+.beads{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:6px;max-width:60px}
+.beads s{width:8px;height:8px;border-radius:50%;display:block}
+.three{display:grid;align-items:start;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;margin-bottom:16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 16px 10px}
+.box.alert{border-color:#E0313155;box-shadow:0 0 0 3px #E0313112}
+.box h3{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.box h3 span{background:var(--soft);border-radius:99px;padding:2px 10px;font-size:13px}
+.box.alert h3 span{background:var(--late);color:#fff}
+.mrow{display:flex;gap:10px;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:10px 2px;text-align:left;cursor:pointer;min-height:52px}
+.mrow:hover{background:var(--soft)}
+.mrow .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.mt{flex:1;min-width:0}.mt b{display:block;font-size:14px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.mt small{color:var(--mut);font-size:12px}
+.mr{font-size:12.5px;font-weight:700;white-space:nowrap;color:var(--mut)}.mr.red{color:var(--late)}
+.calm{color:var(--mut);margin:10px 0 14px}
+.more{background:none;border:0;color:var(--acc);font-weight:700;padding:8px 2px;cursor:pointer}
+.crew{margin-bottom:10px}.crew h3{margin-bottom:10px}
+.crew-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.mate{flex:0 0 auto;display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:6px 16px 6px 6px;cursor:pointer}
+.mate:hover{border-color:var(--acc)}
+.mate .ring{width:46px;height:46px}.mate .ring b{width:36px;height:36px;font-size:11.5px}
+.mate span{text-align:left;line-height:1.25}.mate small{display:block;color:var(--mut);font-size:12px}.mate em{font-style:normal;color:var(--late)}
+.foot-link{text-align:center;margin-top:18px}
+@media(max-width:720px){.pace{grid-template-columns:1fr}.pace-r{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px}
+ .week{grid-template-columns:repeat(7,minmax(64px,1fr));overflow-x:auto}.wd{min-height:100px}}
 footer{border-top:1px solid var(--line);padding:22px 0;color:var(--mut);font-size:13px}
 .hide{display:none!important}
 .spin{display:inline-block;width:16px;height:16px;border:2.5px solid #fff6;border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
@@ -685,35 +741,64 @@ function feedHTML() {
   if (!f.length) return '<div class="empty">No updates yet.</div>';
   return `<div class="feed">${f.map(l => `<div data-task="${esc(l.t2.id)}" style="cursor:pointer"><b>${esc(l.by)}</b> · ${esc(l.msg)}<br><span>${esc((l.t2.code ? l.t2.code + ' ' : '') + l.t2.title)}</span><small>${esc(String(l.t).replace('T', ' ').slice(0, 16))}</small></div>`).join('')}</div>`;
 }
-function rDash() {
-  const s = stats(S.tasks), b = bstats(S.budget);
-  const late = S.tasks.filter(t => t.state === 'late').sort((a, c) => a.targetDate < c.targetDate ? -1 : 1);
-  const soon = S.tasks.filter(t => t.state !== 'done' && t.state !== 'late' && t.dueIn !== null && t.dueIn <= 3).sort((a, c) => a.targetDate < c.targetDate ? -1 : 1);
-  const finding = !s.total ? 'No tasks yet — the admin can add tasks or upload the action-plan Excel.' :
-    `<em>${s.done} of ${s.total}</em> tasks done (${s.pct}%) · ${s.late ? `<span style="color:var(--late)">${s.late} overdue</span>` : 'nothing overdue'} · ${s.dueToday} due today`;
-  $('#v-dashboard').innerHTML = `
-  <p class="mut sm" style="margin:0">${esc(S.settings.subtitle || '')}</p>
-  <h1 class="finding">${finding}</h1>
-  <div class="kpis">
-   <div class="kpi" data-go="tasks:"><span>Total tasks</span><b>${s.total}</b><i>${S.users.length} people</i></div>
-   <div class="kpi k-done" data-go="tasks:done"><span>Completed</span><b>${s.done}</b><i>${s.onTime} on time</i></div>
-   <div class="kpi k-prog" data-go="tasks:prog"><span>In progress</span><b>${s.prog}</b><i>${s.todo} not started</i></div>
-   <div class="kpi k-late" data-go="tasks:late"><span>Overdue</span><b>${s.late}</b><i>reminded daily</i></div>
-   <div class="kpi" data-go="tasks:open"><span>Due today</span><b>${s.dueToday}</b><i>${s.dueSoon} in next 3 days</i></div>
-   ${S.budget.length ? `<div class="kpi" data-go="budget"><span>Budget paid</span><b>${inr(b.paid)}</b><i>of ${inr(b.base)} · ${b.pending} pending</i></div>` : ''}
-  </div>
-  <div class="card" style="margin-bottom:14px"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">Deadline runway — every task parked on its due day</h3>${legend}</div>${runwayHTML(S.tasks)}</div>
-  <div class="card" style="margin-bottom:14px"><h3>Team board <span class="mut sm" style="font-weight:500">— tap a person to see their tasks</span></h3>${teamHTML()}</div>
-  <div class="grid g2" style="margin-bottom:14px">
-   <div class="card"><h3 style="color:var(--late)">Overdue (${late.length})</h3><div class="list">${late.length ? late.map(itemHTML).join('') : '<div class="empty">Nothing overdue. Great going.</div>'}</div></div>
-   <div class="card"><h3>Due in the next 3 days (${soon.length})</h3><div class="list">${soon.length ? soon.map(itemHTML).join('') : '<div class="empty">Nothing due in the next 3 days.</div>'}</div></div>
-  </div>
-  <div class="grid g3">
-   <div class="card"><h3>Progress by activity</h3>${activityBars()}</div>
-   <div class="card"><h3>On-time champions</h3>${leaderboard()}</div>
-   <div class="card"><h3>Live updates</h3>${feedHTML()}</div>
-  </div>`;
+function planPace() {
+  const td = today();
+  const st = S.tasks.map(t => t.startDate || t.targetDate).filter(Boolean).sort();
+  const en = S.tasks.map(t => t.targetDate).filter(Boolean).sort();
+  if (!st.length) return null;
+  const a = st[0], b = en[en.length - 1], span = Math.max(1, diffDays(b, a) + 1);
+  const time = Math.max(0, Math.min(100, Math.round((diffDays(td, a) + 1) / span * 100)));
+  const work = Math.round(S.tasks.reduce((n, t) => n + t.progressN, 0) / S.tasks.length);
+  const gap = work - time;
+  const mood = time <= 0 ? ['Not started yet', 'good'] : gap >= -5 ? ['On track', 'good'] : gap >= -20 ? ['A little behind', 'warn'] : ['Behind plan', 'bad'];
+  return { a, b, span, time, work, mood, day: Math.min(span, Math.max(0, diffDays(td, a) + 1)), left: diffDays(b, td) };
 }
+function miniRow(t, right) {
+  return `<button class="mrow" data-task="${esc(t.id)}"><span class="dot s-${t.state}"></span><span class="mt"><b>${esc(t.title)}</b><small>${esc(t.ids.map(uName).join(', '))}</small></span><span class="mr ${t.state === 'late' ? 'red' : ''}">${right}</span></button>`;
+}
+function rDash() {
+  const s = stats(S.tasks), b = bstats(S.budget), p = planPace(), td = today();
+  const attn = S.tasks.filter(t => t.state !== 'done' && t.dueIn !== null && t.dueIn <= 0).sort((x, y) => x.targetDate < y.targetDate ? -1 : 1);
+  const next = S.tasks.filter(t => t.state !== 'done' && t.dueIn > 0 && t.dueIn <= 3).sort((x, y) => x.targetDate < y.targetDate ? -1 : 1);
+  const wins = S.tasks.filter(t => t.state === 'done').sort((x, y) => (x.closedDate || '') < (y.closedDate || '') ? 1 : -1).slice(0, 4);
+  const week = Array.from({ length: 7 }, (_, i) => addDays(td, i));
+  const ps = people().filter(x => x.s.total).sort((x, y) => y.s.pct - x.s.pct);
+  if (!p) { $('#v-dashboard').innerHTML = '<div class="empty" style="padding:60px">No tasks yet — the admin can add tasks or upload the action-plan Excel.</div>'; return; }
+  $('#v-dashboard').innerHTML = `
+  <section class="pace ${p.mood[1]}">
+   <div class="pace-l">
+    <p class="kick">${esc(S.settings.subtitle || 'Action plan')}</p>
+    <h1><span class="mood">${p.mood[0]}</span></h1>
+    <p class="say">${p.time <= 0 ? 'The plan starts on ' + fmtDY(p.a) + '.' : `Day ${p.day} of ${p.span} · <b>${p.time}%</b> of the time used, <b>${p.work}%</b> of the work done.`} ${p.left > 0 ? `${p.left} day${p.left > 1 ? 's' : ''} to go.` : p.left === 0 ? 'Last day today.' : 'Plan period is over.'}</p>
+    <div class="road" aria-label="Time used versus work done">
+     <div class="lane"><span>Time</span><div class="bar"><i style="width:${p.time}%"></i></div><b>${p.time}%</b></div>
+     <div class="lane work"><span>Work</span><div class="bar"><i style="width:${p.work}%"></i></div><b>${p.work}%</b></div>
+     <div class="ends"><span>${fmtD(p.a)}</span><span>${fmtD(p.b)}</span></div>
+    </div>
+   </div>
+   <div class="pace-r">
+    <div class="big">${s.done}<small>/${s.total}</small></div><div class="cap">tasks completed</div>
+    <div class="pills"><span><b>${s.prog}</b> in progress</span><span class="${s.late ? 'red' : ''}"><b>${s.late}</b> overdue</span>${S.budget.length ? `<span><b>${inr(b.paid)}</b> of ${inr(b.base)} paid</span>` : ''}</div>
+   </div>
+  </section>
+
+  <section class="week" aria-label="Next 7 days">${week.map(d => { const l = S.tasks.filter(t => t.targetDate === d && t.state !== 'done'); const dn = S.tasks.filter(t => t.targetDate === d && t.state === 'done').length; const dt = parseD(d); return `<button class="wd${d === td ? ' now' : ''}" data-day="${d}"><span>${d === td ? 'Today' : dt.toLocaleDateString('en-IN', { weekday: 'short' })}</span><b>${dt.getDate()}</b><em>${l.length ? l.length + ' due' : dn ? '✓ clear' : '—'}</em><i class="beads">${l.slice(0, 8).map(t => `<s class="s-${t.state}"></s>`).join('')}</i></button>`; }).join('')}</section>
+
+  <section class="three">
+   <div class="box ${attn.length ? 'alert' : ''}"><h3>Needs attention <span>${attn.length}</span></h3>${attn.length ? attn.slice(0, 5).map(t => miniRow(t, t.dueIn === 0 ? 'Today' : -t.dueIn + 'd late')).join('') + (attn.length > 5 ? `<button class="more" data-go="tasks:late">+${attn.length - 5} more</button>` : '') : '<p class="calm">Nothing overdue or due today.</p>'}</div>
+   <div class="box"><h3>Coming up <span>${next.length}</span></h3>${next.length ? next.slice(0, 5).map(t => miniRow(t, t.dueIn === 1 ? 'Tomorrow' : fmtD(t.targetDate))).join('') + (next.length > 5 ? `<button class="more" data-go="tasks:open">+${next.length - 5} more</button>` : '') : '<p class="calm">Nothing due in the next 3 days.</p>'}</div>
+   <div class="box"><h3>Recent wins <span>${s.done}</span></h3>${wins.length ? wins.map(t => miniRow(t, fmtD(t.closedDate))).join('') : '<p class="calm">The first win is on its way.</p>'}</div>
+  </section>
+
+  <section class="crew"><h3>Team</h3><div class="crew-row">${ps.map(({ u, s: q }) => `<button class="mate" data-person="${esc(u.id)}">${ring(q.pct, q.late ? 'var(--late)' : 'var(--done)')}<span><b>${esc(u.name.replace(/^(Dr|Mr|Mrs|Ms|Prof)\.?\s+/i, ''))}</b><small>${q.done}/${q.total} done${q.late ? ` · <em>${q.late} late</em>` : ''}</small></span></button>`).join('')}</div></section>
+  <p class="foot-link"><button class="btn line" data-go="tasks">See all ${s.total} tasks →</button></p>`;
+  $$('.wd').forEach(w => w.onclick = () => openDay(w.dataset.day));
+}
+function openDay(d) {
+  const l = S.tasks.filter(t => t.targetDate === d);
+  modal(fmtDY(d), `<div class="list">${l.map(itemHTML).join('') || '<div class="empty">Nothing due on this day.</div>'}</div>`, '<button class="btn" data-close>Close</button>', 'noauto');
+}
+
 function openPerson(id) {
   const u = uMap()[id]; if (!u) return;
   const list = S.tasks.filter(t => t.ids.includes(id)).sort((a, b) => (a.state === 'done') - (b.state === 'done') || (a.targetDate < b.targetDate ? -1 : 1));
@@ -785,7 +870,7 @@ function rTasks() {
    <select id="fs">${[['', 'All status'], ['open', 'All open'], ['late', 'Overdue'], ['prog', 'In progress'], ['todo', 'Not started'], ['hold', 'On hold'], ['done', 'Completed']].map(([v, l]) => `<option value="${v}" ${f.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
    <select id="fa"><option value="">All activities</option>${acts.map(a => `<option ${f.activity === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
    <select id="fr"><option value="">Any priority</option>${['High', 'Medium', 'Low'].map(p => `<option ${f.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select>
-   <div class="seg" id="tv-seg">${[['table', 'Table'], ['kanban', 'Board'], ['calendar', 'Calendar']].map(([v, l]) => `<button data-tv="${v}" class="${S.tview === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+   <div class="seg" id="tv-seg">${[['table', 'Table'], ['kanban', 'Board'], ['timeline', 'Timeline'], ['calendar', 'Calendar']].map(([v, l]) => `<button data-tv="${v}" class="${S.tview === v ? 'on' : ''}">${l}</button>`).join('')}</div>
   </div><div id="tbody"></div>`;
   const re = () => { drawTasks(); };
   $('#fq').oninput = e => { f.q = e.target.value; re(); };
@@ -799,6 +884,7 @@ function drawTasks() {
   const list = filtered(), box = $('#tbody');
   if (S.tview === 'kanban') return drawKanban(list, box);
   if (S.tview === 'calendar') return drawCal(list, box);
+  if (S.tview === 'timeline') { box.innerHTML = `<div class="card"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">Deadline runway — each task on its due day</h3>${legend}</div>${runwayHTML(list)}</div>`; return; }
   box.innerHTML = list.length ? `<div class="card" style="padding:0"><div class="scroll"><table class="stack"><thead><tr><th>ID</th><th>Task</th><th>Assigned</th><th>Target</th><th>Status</th><th>Delay</th><th class="num">Budget</th></tr></thead><tbody>
    ${list.map(t => `<tr class="click" data-task="${esc(t.id)}"><td class="nowrap"><b>${esc(t.code || '—')}</b></td><td><b>${esc(t.title)}</b><div class="sm mut">${esc(t.activity || '')}${t.priority === 'High' ? ' · <span class="warn">High</span>' : ''}</div></td>
    <td>${avs(t.ids)} <span class="sm">${esc(t.ids.map(uName).join(', '))}</span></td><td class="nowrap">${fmtDY(t.targetDate)}<div class="sm mut">${dueText(t)}</div></td>
@@ -1020,6 +1106,7 @@ function rReports() {
   <div class="card" style="padding:0;margin-bottom:14px"><div class="scroll"><table class="stack"><thead><tr><th>${GLABEL[R.group]}</th><th class="num">Total</th><th class="num">Completed</th><th class="num">On time</th><th class="num">In progress</th><th class="num">Not started</th><th class="num">Overdue</th><th class="num">Avg delay (d)</th><th>Completion</th></tr></thead><tbody>
   ${groups.map(g => `<tr><td><b>${esc(R.group === 'day' ? fmtDY(g.k) : g.k)}</b></td><td class="num">${g.s.total}</td><td class="num">${g.s.done}</td><td class="num">${g.s.onTime}</td><td class="num">${g.s.prog}</td><td class="num">${g.s.todo + g.s.hold}</td><td class="num" style="color:${g.s.late ? 'var(--late)' : 'inherit'}">${g.s.late}</td><td class="num">${g.avgDelay}</td><td><div class="track" style="width:120px;display:inline-flex;vertical-align:middle"><i style="width:${g.s.pct}%;background:var(--done)"></i></div> ${g.s.pct}%</td></tr>`).join('') || '<tr><td colspan="9" class="mut">No tasks in this period. Try "All dates" or a different date basis.</td></tr>'}
   </tbody></table></div></div>
+  <div class="grid g2" style="margin-bottom:14px"><div class="card"><h3>Progress by activity</h3>${activityBars()}</div><div class="card"><h3>On-time champions</h3>${leaderboard()}</div></div>
   <details class="card"><summary style="cursor:pointer;font-weight:700">Task detail (${list.length})</summary><div class="list" style="margin-top:12px">${list.map(itemHTML).join('')}</div></details>`;
   const set = (id, k, ev = 'onchange') => { $(id)[ev] = e => { R[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; rReports(); }; };
   set('#rp', 'preset'); set('#rf', 'from'); set('#rt', 'to'); set('#rb', 'basis'); set('#rpe', 'person'); set('#rr', 'role'); set('#rs', 'status'); set('#rg', 'group'); set('#rwb', 'withBudget');
