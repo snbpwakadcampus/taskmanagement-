@@ -12,8 +12,12 @@
  *  5. Copy the Web app URL into API_URL at the top of index.html.
  */
 
+/* Google Sheet used as the database (ID from its URL). Leave '' if this script is bound to the sheet. */
+const SHEET_ID = '1CrXEBN2uW_keKzYbXvBxHMLR8fAjsqc3HX4rms-p8tA';
+function book() { return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet(); }
+
 const CONFIG = {
-  ADMIN_EMAIL: 'atul.kathole1910@gmail.com',
+  ADMIN_EMAIL: 'snbpwakadcampus@gmail.com',
   ADMIN_NAME: 'Dr. Atul Kathole',
   ADMIN_DESIGNATION: 'Admin – Strategy & Branding',
   ORG: 'SNBP University · School of Business Management · Wakad Campus',
@@ -46,7 +50,7 @@ const STATUSES = ['Not Started', 'In Progress', 'On Hold', 'Completed'];
 
 /* ------------------------------------------------------------------ setup */
 function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = book();
   Object.keys(SHEETS).forEach(function (name) {
     let s = ss.getSheetByName(name);
     if (!s) s = ss.insertSheet(name);
@@ -116,7 +120,7 @@ function handle(p) {
 }
 
 /* ------------------------------------------------------------------ table helpers */
-function sheet(n) { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(n); }
+function sheet(n) { return book().getSheetByName(n); }
 function cell(v) {
   if (v instanceof Date) return Utilities.formatDate(v, CONFIG.TZ, 'yyyy-MM-dd');
   return v === null || v === undefined ? '' : String(v);
